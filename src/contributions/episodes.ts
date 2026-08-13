@@ -12,7 +12,11 @@ export interface EditEpisode {
   /** The first burst's id — stable, since bursts are immutable. */
   id: string;
   contributorId: ContributorId;
-  /** Canonical block ids this episode touched. Empty = never placed. */
+  /**
+   * Block ids exactly as the placements recorded them. Mapping them onto
+   * display rows (live block, surviving descendant, or "removed") is the
+   * map's concern — the fold only uses lineage to judge continuity.
+   */
   blockIds: ReadonlySet<string>;
   startedAt: number;
   endedAt: number;
@@ -25,10 +29,13 @@ export interface EditEpisode {
 export const EPISODE_MAX_GAP_MS = 15 * 60_000;
 
 /**
- * Canonical block identity across splits and merges (R3): pressing Enter
+ * Ancestry-root identity across splits and merges (R3): pressing Enter
  * inside a paragraph mints a new blockId carrying `splitFromBlockId`, and a
- * join records `mergedIntoBlockId`. Following those links to their root keeps
- * one act of writing on one row. Unknown ids canonicalize to themselves.
+ * join records `mergedIntoBlockId`. Following those links to their root makes
+ * a paragraph and the halves split from it *the same place* for episode
+ * continuity. This is deliberately NOT the row key — a document typed from
+ * one seed paragraph would collapse to a single root — see `buildRowResolver`
+ * for the display-side mapping. Unknown ids canonicalize to themselves.
  */
 export function buildLineage(blocks: BlockText[]): (blockId: string) => string {
   const parent = new Map<string, string>();
@@ -53,10 +60,39 @@ export function buildLineage(blocks: BlockText[]): (blockId: string) => string {
   };
 }
 
+/**
+ * Display-side row identity: a live block is its own row; a dead id resolves
+ * to its first surviving split-descendant when one is reachable, and to
+ * `null` ("removed content") otherwise. Kept separate from `buildLineage` on
+ * purpose — rows must stay distinct even though they share an ancestor.
+ */
+export function buildRowResolver(blocks: BlockText[]): (blockId: string) => string | null {
+  const live = new Set(blocks.map((b) => b.blockId));
+  // Dead parent → first live child in document order.
+  const childOf = new Map<string, string>();
+  for (const block of blocks) {
+    const from = block.splitFromBlockId;
+    if (from && !live.has(from) && !childOf.has(from)) childOf.set(from, block.blockId);
+  }
+  return function rowOf(blockId: string): string | null {
+    if (live.has(blockId)) return blockId;
+    let cursor: string | undefined = blockId;
+    const seen = new Set<string>();
+    while (cursor && !seen.has(cursor)) {
+      seen.add(cursor);
+      if (live.has(cursor)) return cursor;
+      cursor = childOf.get(cursor);
+    }
+    return null;
+  };
+}
+
 interface OpenEpisode {
   id: string;
   contributorId: ContributorId;
   blocks: Set<string>;
+  /** Ancestry roots of `blocks` — the space continuity is judged in. */
+  roots: Set<string>;
   startedAt: number;
   endedAt: number;
   weight: number;
@@ -64,7 +100,7 @@ interface OpenEpisode {
 }
 
 function close(open: OpenEpisode): EditEpisode {
-  const { blocks, ...rest } = open;
+  const { blocks, roots: _roots, ...rest } = open;
   return { ...rest, blockIds: blocks };
 }
 
@@ -86,28 +122,29 @@ export function foldEpisodes(
   const out: EditEpisode[] = [];
 
   for (const burst of sorted) {
-    const touched = new Set(
-      (placementOf(burst.id)?.changes ?? []).map((change) => canonicalOf(change.blockId)),
-    );
+    const touched = new Set((placementOf(burst.id)?.changes ?? []).map((c) => c.blockId));
+    const roots = new Set([...touched].map(canonicalOf));
     const current = open.get(burst.contributorId);
     const compatible =
       current != null &&
       burst.startedAt - current.endedAt <= EPISODE_MAX_GAP_MS &&
-      (touched.size === 0 ||
-        current.blocks.size === 0 ||
-        [...touched].some((id) => current.blocks.has(id)));
+      (roots.size === 0 ||
+        current.roots.size === 0 ||
+        [...roots].some((root) => current.roots.has(root)));
 
     if (current && compatible) {
       current.endedAt = Math.max(current.endedAt, burst.endedAt);
       current.weight += burst.weight;
       current.burstCount += 1;
       for (const id of touched) current.blocks.add(id);
+      for (const root of roots) current.roots.add(root);
     } else {
       if (current) out.push(close(current));
       open.set(burst.contributorId, {
         id: burst.id,
         contributorId: burst.contributorId,
         blocks: touched,
+        roots,
         startedAt: burst.startedAt,
         endedAt: burst.endedAt,
         weight: burst.weight,

@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { EditMapPanel } from './EditMapPanel';
 import { EditorPane } from './EditorPane';
 import { EditsPanel } from './EditsPanel';
 import { HistoryBanner } from './HistoryBanner';
@@ -9,6 +10,8 @@ import { TimelineDock } from './TimelineDock';
 import { useActivityPolling } from '@/contributions/useActivityPolling';
 import { usePlacementBackfill } from '@/spotlight/placementIndex';
 import { useRoom } from '@/store/room';
+
+type DockTab = 'map' | 'volume';
 
 /**
  * Fixed chrome shell: header rows pinned on top, the timeline docked at the
@@ -23,6 +26,7 @@ export function RoomView() {
   const historyAt = useRoom((s) => s.historyAt);
   const setHistoryAt = useRoom((s) => s.setHistoryAt);
   const [connectedOnce, setConnectedOnce] = useState(false);
+  const [tab, setTab] = useState<DockTab>('map');
 
   const { series, onLocalEdit } = useActivityPolling(roomId ?? null, connectedOnce);
   usePlacementBackfill(roomId ?? null, connectedOnce);
@@ -31,6 +35,21 @@ export function RoomView() {
   const onReturnToLive = useCallback(() => setHistoryAt(null), [setHistoryAt]);
 
   if (!roomId) return null;
+
+  const tabButton = (value: DockTab, label: string) => (
+    <button
+      type="button"
+      onClick={() => setTab(value)}
+      aria-pressed={tab === value}
+      className={`rounded px-2 py-0.5 text-xs ${
+        tab === value
+          ? 'bg-slate-800 font-medium text-white'
+          : 'text-slate-600 hover:bg-slate-100'
+      }`}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-slate-100">
@@ -51,12 +70,43 @@ export function RoomView() {
         {historyAt != null ? <HistoryPreview roomId={roomId} at={historyAt} /> : null}
       </div>
 
-      <TimelineDock>
-        <EditsPanel
-          series={series}
-          connected={status === 'connected'}
-          onBucketClick={connectedOnce ? onBucketClick : undefined}
-        />
+      <TimelineDock
+        controls={
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-0.5 rounded border border-slate-200 p-0.5">
+              {tabButton('map', 'Map')}
+              {tabButton('volume', 'Volume')}
+            </div>
+            {tab === 'map' ? (
+              <ul className="flex flex-wrap items-center gap-2">
+                {series.contributors.map((contributor) => (
+                  <li key={contributor.id} className="flex items-center gap-1 text-xs text-slate-600">
+                    <span
+                      aria-hidden
+                      className="inline-block h-2 w-2 rounded-full"
+                      style={{ backgroundColor: contributor.color }}
+                    />
+                    {contributor.name}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        }
+      >
+        {tab === 'map' ? (
+          <EditMapPanel
+            contributors={series.contributors}
+            connected={status === 'connected'}
+            onPickTime={connectedOnce ? onBucketClick : undefined}
+          />
+        ) : (
+          <EditsPanel
+            series={series}
+            connected={status === 'connected'}
+            onBucketClick={connectedOnce ? onBucketClick : undefined}
+          />
+        )}
       </TimelineDock>
     </div>
   );

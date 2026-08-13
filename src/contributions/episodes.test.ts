@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EPISODE_MAX_GAP_MS, buildLineage, foldEpisodes } from './episodes';
+import { EPISODE_MAX_GAP_MS, buildLineage, buildRowResolver, foldEpisodes } from './episodes';
 import type { BlockText, BurstChange } from '@/spotlight/burstDiff';
 import type { BurstPlacement } from '@/spotlight/placementIndex';
 import type { ContributionEvent } from '@/types';
@@ -106,7 +106,32 @@ describe('foldEpisodes', () => {
       canonicalOf,
     );
     expect(episodes).toHaveLength(1);
-    expect([...(episodes[0]?.blockIds ?? [])]).toEqual(['parent']);
+    // Continuity is judged in root space; the raw ids are both preserved so
+    // the map can still place them on their own live rows.
+    expect([...(episodes[0]?.blockIds ?? [])].sort()).toEqual(['child', 'parent']);
+  });
+});
+
+describe('buildRowResolver', () => {
+  const blocks: BlockText[] = [
+    { blockId: 'intro', text: 'x', splitFromBlockId: null, mergedIntoBlockId: null },
+    { blockId: 'body', text: 'y', splitFromBlockId: 'dead-seed', mergedIntoBlockId: null },
+  ];
+
+  it('keeps live blocks as their own rows even when they share an ancestor', () => {
+    const rowOf = buildRowResolver(blocks);
+    expect(rowOf('intro')).toBe('intro');
+    expect(rowOf('body')).toBe('body');
+  });
+
+  it('resolves a dead id to its surviving split-descendant', () => {
+    const rowOf = buildRowResolver(blocks);
+    expect(rowOf('dead-seed')).toBe('body');
+  });
+
+  it('returns null for an id with no surviving descendant', () => {
+    const rowOf = buildRowResolver(blocks);
+    expect(rowOf('long-gone')).toBeNull();
   });
 });
 

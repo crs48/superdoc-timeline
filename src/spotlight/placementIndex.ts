@@ -57,13 +57,25 @@ export async function fillPlacements(
 /**
  * Keeps the placement index and the latest block list in step with the
  * activity store. The map renders progressively as placements arrive.
+ *
+ * The effect keys on a burst fingerprint, not the events Map itself: polling
+ * rebuilds the Map every tick even when nothing changed, and restarting the
+ * backfill on each poll aborts in-flight reconstructions just to refetch
+ * them (observed live as duplicated changeset requests).
  */
 export function usePlacementBackfill(roomId: string | null, enabled: boolean) {
-  const events = useActivity((s) => s.events);
+  const fingerprint = useActivity((s) => {
+    let newest = 0;
+    for (const event of s.events.values()) {
+      if (event.endedAt > newest) newest = event.endedAt;
+    }
+    return `${s.events.size}:${newest}`;
+  });
   const putPlacement = useActivity((s) => s.putPlacement);
   const setLatestBlocks = useActivity((s) => s.setLatestBlocks);
 
   useEffect(() => {
+    const events = useActivity.getState().events;
     if (!roomId || !enabled || events.size === 0) return;
     const controller = new AbortController();
     const bursts = [...events.values()];
@@ -84,5 +96,5 @@ export function usePlacementBackfill(roomId: string | null, enabled: boolean) {
     );
 
     return () => controller.abort();
-  }, [roomId, enabled, events, putPlacement, setLatestBlocks]);
+  }, [roomId, enabled, fingerprint, putPlacement, setLatestBlocks]);
 }
