@@ -15,6 +15,11 @@ const WS_BASE = (import.meta.env.VITE_YHUB_WS_URL ?? 'ws://localhost:4403').repl
 /** Derived rather than configured twice: two URLs that must agree will disagree. */
 const HTTP_BASE = WS_BASE.replace(/^ws/, 'http');
 
+/** REST base for y/hub's activity/changeset APIs. */
+export function httpBase(): string {
+  return HTTP_BASE;
+}
+
 /**
  * SuperDoc v2 does not connect to `${serverUrl}/${documentId}`. It inserts a
  * protocol namespace, requesting `/api/ws/v1/{org}/sd2/v2.1/{documentId}`.

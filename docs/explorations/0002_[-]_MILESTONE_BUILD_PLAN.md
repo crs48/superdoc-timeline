@@ -11,13 +11,14 @@ tags: [superdoc, yjs, yhub, collaboration, dataviz, take-home, planning]
 # Milestone Build Plan — SuperDoc Contributions Timeline
 
 > [!TIP]
-> **TL;DR** — **Milestones 0–3 and the deploy shipped on `main`.** The take-home is submittable
-> today: collaborative DOCX editing on SuperDoc v2 + y/hub, a stacked contribution chart, Pages +
-> Railway, and a README that documents the trade-offs. What remains is **M4 (chart interactivity)**,
-> a **20-minute metric upgrade** from edit-bursts to real character counts, and the **M5/M6 stretch**
-> — which is far cheaper than the brief assumed, because y/hub already reconstructs the document at
-> any past timestamp. This document now tracks *what is left*, and records two of its own earlier
-> claims that turned out wrong.
+> **TL;DR** — **Everything shipped.** M0–M3 + deploy landed in the first session; this session added
+> M4 (brush, summary card, legend solo, sparse state), M5/M6 (History Mode as a server query — click
+> the chart, see the document as it was, return to live with the socket intact), two latent-bug
+> fixes (cross-room activity bleed; brush/summary disagreement), and the M3.5 character metric —
+> which was **built, verified exact against plain-Yjs rooms, and deliberately reverted** because
+> y/hub renders SuperDoc v2 deltas as content-unit metadata, never text. Only two boxes remain, both
+> pre-interview manual checks (two-machine verify, Railway redeploy survival). The doc also records
+> two of its own earlier claims that turned out wrong — the corrections are the interesting part.
 
 ---
 
@@ -78,10 +79,10 @@ Merged from `main` at `3827def`. 0001 is checked off `[x]`.
 | Contribution projection + chart | ✅ Shipped | [normalize.ts](src/contributions/normalize.ts), [bucket.ts](src/contributions/bucket.ts), [useActivityPolling.ts](src/contributions/useActivityPolling.ts), [store/activity.ts](src/store/activity.ts), [EditsPanel.tsx](src/components/EditsPanel.tsx), [ContributionChart.tsx](src/components/ContributionChart.tsx) |
 | Bucketing unit test | ✅ Shipped | [bucket.test.ts](src/contributions/bucket.test.ts) |
 | Deploy | ✅ Shipped | [.github/workflows/deploy.yml](.github/workflows/deploy.yml), [railway.json](railway.json), [README.md](README.md) |
-| **Character-count metric** | 🚧 **Stubbed** | `weightOf()` returns `1`; `fetchActivity` omits `delta=true` |
-| **M4 — brush, summary, legend solo** | ❌ Not started | — |
-| **M5/M6 — history mode** | ❌ Not started | — |
-| shadcn/ui | 🛑 Skipped | Raw Tailwind utilities throughout; no `components.json`, no `cva`/`clsx`. A defensible call at 4 hours — worth one README line so it reads as a decision rather than an omission |
+| **Character-count metric** | ✅ Built, reverted by design | The delta walk + tests ship as the upgrade path; the axis says "bursts" because y/hub can't see inside SuperDoc content units — see the M3.5 outcome callout |
+| **M4 — brush, summary, legend solo** | ✅ Shipped | [SummaryCard.tsx](src/components/SummaryCard.tsx), [EditsPanel.tsx](src/components/EditsPanel.tsx), [ContributionChart.tsx](src/components/ContributionChart.tsx) |
+| **M5/M6 — history mode** | ✅ Shipped | [fetchDocumentAt.ts](src/history/fetchDocumentAt.ts), [HistoryPreview.tsx](src/components/HistoryPreview.tsx), [RoomView.tsx](src/components/RoomView.tsx) |
+| shadcn/ui | 🛑 Skipped, documented | README decision #10: raw Tailwind carries the five components this UI needs |
 
 ### What the implementation discovered that no amount of planning would have
 
@@ -249,6 +250,16 @@ its band and the others restack; a room with a single edit still renders a sensi
 
 ### M5 — Snapshot Foundation · 25 min · **stretch**
 
+> [!IMPORTANT]
+> **Outcome: shipped, with one schema discovery and one API trap.** SuperDoc v2's Y.Doc decodes as
+> nine roots (`meta`, `content`, `shards`, `operations`, …); the prose lives at
+> `content` (Y.Map) → story shard → `blocks` (Y.Array) → per-block `text` (Y.Text). The planned
+> `describeDoc` accessor-chain was a trap: **reading an untyped Yjs root with the wrong accessor
+> silently re-types it** (`getText` on a map root succeeds, returns empty, and poisons every later
+> read), so the shipped [extractParagraphs](src/history/fetchDocumentAt.ts) types only the
+> `content` root — correctly — and `instanceof`-guards everything below, degrading to fewer
+> paragraphs rather than a crash on schema drift.
+
 **Goal:** fetch and decode the document as it was at an arbitrary past timestamp.
 
 > [!IMPORTANT]
@@ -273,9 +284,9 @@ that point-in-time state."
 **Tasks**
 
 - [ ] Move `yjs@13.6.32` from `devDependencies` to `dependencies` (already pinned to SuperDoc's peer)
-- [ ] `fetchDocumentAt(roomId, ts)` — remember `collapsedDocId(roomId)`, same as `fetchActivity`
-- [ ] `describeDoc(doc)` — enumerate roots rather than guessing SuperDoc's schema
-- [ ] `HistoryPreview` — read-only panel rendering the reconstructed text
+- [x] `fetchDocumentAt(roomId, ts)` — remember `collapsedDocId(roomId)`, same as `fetchActivity`
+- [x] `describeDoc(doc)` — enumerate roots rather than guessing SuperDoc's schema
+- [x] `HistoryPreview` — read-only panel rendering the reconstructed text
 
 ```ts
 // src/history/fetchDocumentAt.ts
@@ -343,11 +354,11 @@ stateDiagram-v2
 
 **Tasks**
 
-- [ ] Add `historyAt: number | null` to [src/store/room.ts](src/store/room.ts)
-- [ ] Chart `onClick` → nearest bucket `t` → `historyAt`
-- [ ] `historyAt !== null` overlays `HistoryPreview` on `EditorPane` — **overlay, never replace**
-- [ ] `HistoryBanner`: timestamp, "read-only", "Return to live"
-- [ ] Cursor affordance on the chart when a click will time-travel
+- [x] Add `historyAt: number | null` to [src/store/room.ts](src/store/room.ts)
+- [x] Chart `onClick` → nearest bucket `t` → `historyAt`
+- [x] `historyAt !== null` overlays `HistoryPreview` on `EditorPane` — **overlay, never replace**
+- [x] `HistoryBanner`: timestamp, "read-only", "Return to live"
+- [x] Cursor affordance on the chart when a click will time-travel
 
 **Definition of done:** click a bucket from five minutes ago → the old text appears with an explicit
 banner → "Return to live" restores the editor, still connected, no reload.
@@ -521,12 +532,12 @@ should add — and the two hooks the corrections at the top of this document unl
 - [x] Sparse-data state
 
 ### M5/M6 — Stretch ❌
-- [ ] `yjs@13.6.32` promoted to `dependencies`
-- [ ] Export `httpBase()` from `collab/yhub.ts`
-- [ ] `fetchDocumentAt` + `describeDoc`
-- [ ] `HistoryPreview` read-only panel
-- [ ] `historyAt` on the room store; chart `onClick`
-- [ ] `HistoryBanner` + "Return to live", editor stays mounted
+- [x] `yjs@13.6.32` promoted to `dependencies`
+- [x] Export `httpBase()` from `collab/yhub.ts`
+- [x] `fetchDocumentAt` + `describeDoc`
+- [x] `HistoryPreview` read-only panel
+- [x] `historyAt` on the room store; chart `onClick`
+- [x] `HistoryBanner` + "Return to live", editor stays mounted
 
 ---
 
@@ -553,7 +564,7 @@ Still to verify:
       counted; naive sum = 2100) — and real SuperDoc rooms yield metadata-only deltas, so the
       shipped chart honestly counts bursts instead. See the M3.5 outcome callout.
 - [x] **V14** (M4) Brush drag updates the summary card without a render storm
-- [ ] **V15** (M6) Click a five-minute-old bucket → old text + banner → return to live, still connected
+- [x] **V15** (M6) Click a five-minute-old bucket → old text + banner → return to live, still connected
 - [x] **V16** Two people typing *simultaneously* for 30s produce two interleaved bands, not one
       swallowing the other (the open grouping question)
 

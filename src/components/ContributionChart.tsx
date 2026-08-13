@@ -41,7 +41,9 @@ export const ContributionChart = memo(function ContributionChart({
           onBucketClick
             ? (state) => {
                 const label = state?.activeLabel;
-                if (typeof label === 'number') onBucketClick(label);
+                // Jump to the bucket's END: clicking a peak should show the
+                // document *including* that burst, not the instant before it.
+                if (typeof label === 'number') onBucketClick(label + series.bucketMs);
               }
             : undefined
         }
