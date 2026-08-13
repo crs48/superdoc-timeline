@@ -1282,10 +1282,10 @@ per-contributor filtering and brush-to-zoom
 **Status:** `░░░░░░░░░░ 0/34 items`
 
 ### Phase 0 — Spikes
-- [ ] Run `ghcr.io/yjs/yhub/standalone:latest` locally on `:4400`
+- [x] Run `ghcr.io/yjs/yhub/standalone:latest` locally on `:4400`
 - [ ] Two-tab SuperDoc v2 ↔ y/hub sync proven with `roomMode` create/join
-- [ ] Determine what a cold joiner passes as `document.data`
-- [ ] Confirm `GET /api/activity/v1/...` returns entries after typing (note the cartoon `by` values)
+- [x] Determine what a cold joiner passes as `document.data`
+- [x] Confirm `GET /api/activity/v1/...` returns entries after typing (note the cartoon `by` values)
 
 ### Phase 1 — Scaffold
 - [ ] `pnpm create vite . --template react-ts`; deps installed
