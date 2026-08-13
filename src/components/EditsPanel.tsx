@@ -41,7 +41,12 @@ export function EditsPanel({ series, connected }: EditsPanelProps) {
             Activity is unavailable ({error}). The document keeps working.
           </p>
         ) : hasData ? (
-          <ContributionChart series={series} />
+          // Recharts' ResponsiveContainer grows reliably but does not always
+          // shrink with the viewport; scrolling the chart inside its own
+          // container keeps a narrow page from overflowing horizontally.
+          <div className="overflow-x-auto">
+            <ContributionChart series={series} />
+          </div>
         ) : (
           <p className="px-2 py-8 text-center text-xs text-slate-500">
             {connected
