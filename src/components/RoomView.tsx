@@ -7,6 +7,7 @@ import { HistoryPreview } from './HistoryPreview';
 import { ShareBar } from './ShareBar';
 import { TimelineDock } from './TimelineDock';
 import { useActivityPolling } from '@/contributions/useActivityPolling';
+import { usePlacementBackfill } from '@/spotlight/placementIndex';
 import { useRoom } from '@/store/room';
 
 /**
@@ -24,6 +25,7 @@ export function RoomView() {
   const [connectedOnce, setConnectedOnce] = useState(false);
 
   const { series, onLocalEdit } = useActivityPolling(roomId ?? null, connectedOnce);
+  usePlacementBackfill(roomId ?? null, connectedOnce);
   const onConnected = useCallback(() => setConnectedOnce(true), []);
   const onBucketClick = useCallback((t: number) => setHistoryAt(t), [setHistoryAt]);
   const onReturnToLive = useCallback(() => setHistoryAt(null), [setHistoryAt]);

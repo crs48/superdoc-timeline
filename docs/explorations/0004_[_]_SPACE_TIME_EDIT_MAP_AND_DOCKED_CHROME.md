@@ -388,14 +388,14 @@ in the store).
 - [x] Verify V13 (narrow viewport) still passes with the dock
 
 ### Track B0 — placement index (~1 h)
-- [ ] Land 0003's `burstDiff.ts` (or extract if 0003 already merged) + `placementIndex.ts`
+- [x] Land 0003's `burstDiff.ts` (or extract if 0003 already merged) + `placementIndex.ts`
       with newest-first backfill, concurrency 2, abort on room change
-- [ ] Store slice keyed by burst id; incremental fill on each poll
+- [x] Store slice keyed by burst id; incremental fill on each poll
 
 ### Track B1 — folds (~45 min, pure + tests)
-- [ ] `episodes.ts` fold with block-lineage keys (R3) + unit tests (pause-in-same-block merges;
+- [x] `episodes.ts` fold with block-lineage keys (R3) + unit tests (pause-in-same-block merges;
       author interleave splits; Σ weight reconciliation for R8)
-- [ ] `sessions.ts` segments + `xOf`/`tOf` + unit tests (round-trip, cut clamping)
+- [x] `sessions.ts` segments + `xOf`/`tOf` + unit tests (round-trip, cut clamping)
 
 ### Track B2 — the map (~1.5 h)
 - [ ] `EditMap.tsx`: block rows (length-weighted, clamped), episode rects, seams, session
@@ -429,7 +429,7 @@ length-weighted rows (uniform fallback) → Volume tab tabs-polish → **never c
 - [ ] **V7** Backfill: opening a room with existing history fills newest sessions first;
       network shows ≤ 2 concurrent changeset fetches; reopening the room refetches nothing
 - [ ] **V8** Formatting-only edit (bold a word) → appears in the unplaced gutter, not dropped
-- [ ] **V9** `pnpm test` — episodes, sessions, placement reconciliation suites green
+- [x] **V9** `pnpm test` — episodes, sessions, placement reconciliation suites green
 - [ ] **V10** 320 px viewport: dock defaults collapsed; expanded map scrolls/clamps legibly
 
 ## References
