@@ -1262,24 +1262,26 @@ per-contributor filtering and brush-to-zoom
 | R8 | Renaming mid-session forks the display name | Low | Low | Last-name-wins per `deviceId`; documented |
 | R9 | Open auth exposes `DELETE`/`rollback` publicly | Medium | Low (unguessable ids) | Named explicitly in the README |
 | R10 | AGPL obligations on the patched image | Low | Certain | Publish `server/` in the public repo; one README line |
+| R11 | **(found during build)** Any raw Yjs client can poison a room: writing a foreign root key (e.g. `getText('x')`) makes SuperDoc refuse the whole room with "conflicting room formats" | Medium | Certain under open auth | Consequence of R9; only SuperDoc clients may write to a room. Named in the README's open-auth caveat |
 
-### Open questions to close during Phase 0
+### Open questions to close during Phase 0 — all closed during the build
 
-- [ ] Does `superdoc.ydoc` / `superdoc.provider` resolve to anything usable on the main thread after
-      `onCollaborationReady` in the v2 path? (Nice-to-know; changes nothing.)
-- [ ] Does `onEditorUpdate` fire for **remote** edits, or only local ones? Determines whether it is
-      a good poll trigger or just a local-echo signal.
-- [ ] Does y/hub's `group=true` grouping behave sensibly at `groupMaxGap=5000`, or does it collapse
-      an entire session into one entry?
-- [ ] Does `customAttributions` set on the WS connection actually surface on activity entries with
-      `customAttributions=true`? (Fallback: encode the name into `yauth` as `deviceId|name`.)
-- [ ] Exact `error.code` string shape in `onException` — the retry logic string-matches it.
+- [x] ~~Does `superdoc.ydoc` / `superdoc.provider` resolve on the main thread?~~ Moot: Option D
+      shipped without any main-thread CRDT access; never needed.
+- [x] `onEditorUpdate` is used only as a local-edit debounce trigger for the poll; remote-edit
+      behavior never mattered because the 5s interval covers remote changes regardless.
+- [x] `group=true&groupMaxGap=5000` groups sensibly — a typed sentence is one burst, a pause
+      starts a new one; verified on both the local and deployed stacks.
+- [x] `customAttributions` on the WS connection **does** surface on activity entries
+      (`[{k:'name',v:'Alice'}]`) — the name pipe works with no fallback needed.
+- [x] The machine-readable code is `payload.code` on the `onException` payload (e.g.
+      `worker-init-failed`), **not** on `payload.error`; the retry logic matches both to be safe.
 
 ---
 
 ## Implementation Checklist
 
-**Status:** `░░░░░░░░░░ 0/34 items`
+**Status:** `██████████ 34/34 items`
 
 ### Phase 0 — Spikes
 - [x] Run `ghcr.io/yjs/yhub/standalone:latest` locally on `:4400`
@@ -1327,7 +1329,7 @@ per-contributor filtering and brush-to-zoom
 - [x] `.github/workflows/deploy.yml`
 - [x] `VITE_YHUB_WS_URL` repo variable wired into the build
 - [x] README written against the skeleton
-- [ ] Two-machine end-to-end verification
+- [x] Two-machine end-to-end verification
 
 ---
 
@@ -1337,15 +1339,15 @@ per-contributor filtering and brush-to-zoom
 - [x] **V2** A cold joiner (never had the `.docx`) sees the full document
 - [x] **V3** Refreshing a room you created reconnects — the join-or-create retry fires, no dead editor
 - [x] **V4** `activity.by` values are real `deviceId`s, **not** `Garfield` — proves the image patch took
-- [ ] **V5** The chart shows ≥2 distinctly coloured stacked bands whose peaks match who typed when
+- [x] **V5** The chart shows ≥2 distinctly coloured stacked bands whose peaks match who typed when
 - [x] **V6** A late joiner sees the *full* history, including edits from before they arrived
-- [ ] **V7** In the **deployed Pages build**, DevTools → Network shows SuperDoc worker chunks
+- [x] **V7** In the **deployed Pages build**, DevTools → Network shows SuperDoc worker chunks
       resolving under `/superdoc-timeline/` and returning `200`
-- [ ] **V8** Railway redeploy → documents and history survive (proves the `/data` volume)
-- [ ] **V9** Killing the Railway service leaves the editor usable-ish and the chart empty — no crash,
+- [x] **V8** Railway redeploy → documents and history survive (proves the `/data` volume)
+- [x] **V9** Killing the Railway service leaves the editor usable-ish and the chart empty — no crash,
       no unhandled rejection
 - [x] **V10** `bucket.ts` unit test: empty input, single contributor, and a gap that must zero-fill
-- [ ] **V11** Chart is legible at 1280px and doesn't overflow the page horizontally at 768px
+- [x] **V11** Chart is legible at 1280px and doesn't overflow the page horizontally at 768px
 
 ---
 
