@@ -59,19 +59,24 @@ Two deliberately independent channels:
    the display name travels separately as a custom attribution (`name:Alice`) so renames don't
    fork identity. Spoofable, yes — and irrelevant, because there is nothing to escalate to.
 
-5. **"Edit volume" means attributed characters, and the naive version is silently wrong.** The
-   activity API's `delta=true` returns each burst's ops — but the delta echoes the authored op
-   *plus unattributed context ops repeating earlier document text*, so summing every insert
-   triple-counts and credits whoever typed last with everyone's words. `weightOf()` in
-   [src/contributions/normalize.ts](src/contributions/normalize.ts) counts only ops carrying an
-   `attribution`. `weight` is opaque to everything downstream, so the first version shipped honest
-   burst counts and this upgrade touched exactly one function.
+5. **"Edit volume" means grouped edit bursts — and the character upgrade was built, measured, and
+   deliberately reverted.** The activity API's `delta=true` returns each burst's ops, and
+   `weightOf()` in [src/contributions/normalize.ts](src/contributions/normalize.ts) counts only
+   ops carrying an `attribution` (the delta also echoes unattributed context ops; summing
+   everything measured 2100 "naive" chars against a real 100+100 in a two-writer probe). Verified
+   exact against plain-Yjs text rooms — and then discovered that y/hub renders a *SuperDoc v2*
+   room's delta as its content-unit metadata map: the typed text never appears, so for real
+   traffic the flag costs ~3KB per entry and every burst degrades to 1 anyway. The axis therefore
+   says "bursts", which is what the data can honestly support; the tested delta walk stays in the
+   code as the upgrade path if y/hub learns to unfold SuperDoc content units.
 
 6. **Open auth, and exactly what that exposes.** `getAccessType()` returns `'rw'` for everyone —
    the brief specifies public shareable URLs with no permission model. Consequence worth naming:
    `DELETE /api/ydoc/v1/...` and `POST /api/rollback/v1/...` are also unauthenticated, so anyone
-   with a room URL can destroy or rewind that document with `curl`. Acceptable for unguessable
-   `nanoid(12)` demo rooms; the first thing to fix in anything real.
+   with a room URL can destroy or rewind that document with `curl`. Subtler: any plain Yjs client
+   that writes *any* root into a SuperDoc room permanently bricks it — v2 refuses to reopen the
+   room with "conflicting room formats" (verified live; five lines of `y-websocket` suffice).
+   Acceptable for unguessable `nanoid(12)` demo rooms; the first thing to fix in anything real.
 
 7. **HashRouter** (`#/d/:roomId`) because GitHub Pages has no rewrite rules — deep links work with
    zero deploy configuration, at the cost of a `#` in the URL.
@@ -139,6 +144,8 @@ pure logic in the app).
 
 ## With more time
 
+- Character-accurate volume, if/when y/hub can render SuperDoc content-unit deltas as text
+  (the client-side walk is already written and tested; see decision 5)
 - Real JWT auth so rollback/delete are not public
 - Push (y/hub webhooks or a WS side-channel) instead of 5s polling
 - Section attribution via the changeset API

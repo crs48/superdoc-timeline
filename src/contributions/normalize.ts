@@ -6,14 +6,19 @@ import type {
 import { colorForContributor, fallbackName } from '@/lib/color';
 
 /**
- * The chart metric: characters inserted or deleted in this burst.
+ * The chart metric: attributed characters when the server can see them, one
+ * per burst otherwise — which for SuperDoc traffic means bursts.
  *
- * With `delta=true` each activity entry carries its ops — but the delta echoes
- * the authored op PLUS unattributed context ops repeating earlier document
- * text. Counting every insert triple-counts and makes whoever typed last look
- * like they wrote the document; only ops carrying an `attribution` belong to
- * this entry. Everything downstream treats `weight` as opaque, so the
- * definition of "volume" lives here and nowhere else.
+ * With `delta=true` an activity entry carries its ops, and an op belonging to
+ * this entry carries an `attribution`; ops echoing surrounding context do not.
+ * Counting the echoes triple-counts (a live two-writer probe measured 2100
+ * "naive" chars against 100+100 real), so only attributed ops count. But y/hub
+ * renders a SuperDoc v2 room's delta as its content-unit *metadata*, never the
+ * typed text, so fetchActivity doesn't request deltas today and every real
+ * entry takes the `|| 1` fallback. The delta walk stays because it is proven
+ * against plain text roots and is the upgrade path if y/hub learns to unfold
+ * SuperDoc content units. Everything downstream treats `weight` as opaque, so
+ * the definition of "volume" lives here and nowhere else.
  */
 export function weightOf(entry: YHubActivityEntry): number {
   let chars = 0;

@@ -128,6 +128,19 @@ flowchart LR
 
 ### M3.5 — Character volume · 20 min · **highest value per minute**
 
+> [!IMPORTANT]
+> **Outcome: built, verified, and reverted by its own decision rule.** The delta walk is exact
+> against plain-Yjs text roots (probe: 100 typed = 100 counted; the naive sum would have said
+> 2100). But real SuperDoc typing produces activity entries whose delta is the room's
+> **content-unit metadata map** — `bootstrap`, `contentDigest`, `contentUnitIds` — never the typed
+> text. y/hub cannot unfold SuperDoc v2 content units into text ops, so in production every entry
+> takes the `|| 1` fallback: "characters" would be burst counts wearing the wrong label, plus ~3KB
+> of delta per entry. Shipped: axis says **bursts**; `weightOf` and its tests stay as the proven
+> upgrade path; README decision #5 tells the whole story. Two bonus discoveries along the way:
+> a foreign Yjs client writing *any* root into a SuperDoc room permanently bricks it
+> ("conflicting room formats"), and the v2 editor has no contenteditable — it is a key-event
+> stage, which matters to anyone driving it with synthetic input.
+
 **Goal:** the y-axis measures how much was written, not how many times someone paused.
 
 This is the one place where the shipped implementation leaves real accuracy on the table, and
@@ -536,7 +549,9 @@ Already passing on `main`:
 Still to verify:
 
 - [ ] **V9** Railway redeploy → documents and history survive (re-check before the interview)
-- [x] **V10** (M3.5) Typing 100 characters moves that band by ~100, not ~300
+- [x] **V10** (M3.5) The attributed-ops walk is exact on plain-Yjs text rooms (100 typed = 100
+      counted; naive sum = 2100) — and real SuperDoc rooms yield metadata-only deltas, so the
+      shipped chart honestly counts bursts instead. See the M3.5 outcome callout.
 - [ ] **V14** (M4) Brush drag updates the summary card without a render storm
 - [ ] **V15** (M6) Click a five-minute-old bucket → old text + banner → return to live, still connected
 - [x] **V16** Two people typing *simultaneously* for 30s produce two interleaved bands, not one

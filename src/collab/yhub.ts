@@ -57,9 +57,12 @@ export async function fetchActivity(
     group: 'true',
     groupMaxGap: '5000',
     customAttributions: 'true',
-    // Per-entry deltas carry the inserted/deleted text, which is what lets the
-    // chart measure characters instead of counting bursts. See weightOf().
-    delta: 'true',
+    // Deliberately NOT `delta: 'true'`. Character-accurate weights were built
+    // and verified against plain-Yjs text rooms (see weightOf and its tests),
+    // but y/hub renders a SuperDoc v2 room's delta as its content-unit
+    // metadata map — the typed text never appears — so for real traffic the
+    // flag costs ~3KB per entry and changes nothing. Flip it back on if y/hub
+    // learns to unfold SuperDoc content units.
     limit: '2000',
   });
   if (from != null) params.set('from', String(from));
