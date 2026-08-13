@@ -1298,9 +1298,9 @@ per-contributor filtering and brush-to-zoom
 ### Phase 2 — Backend
 - [x] `server/yhub.js` with `yauth`-reading `readAuthInfo` + AGPL notice (image inlines config in bin/yhub.js, not conf.js)
 - [x] `server/Dockerfile`
-- [ ] Railway service deployed from `server/`
-- [ ] Volume attached at `/data`
-- [ ] Domain generated; `wss://` reachable
+- [x] Railway service deployed from `server/`
+- [x] Volume attached at `/data`
+- [x] Domain generated; `wss://` reachable
 
 ### Phase 3 — Collaboration
 - [x] `collab/yhub.ts` URL builders
@@ -1324,9 +1324,9 @@ per-contributor filtering and brush-to-zoom
 - [ ] Names resolved from `customAttributions`
 
 ### Phase 6 — Ship
-- [ ] `.github/workflows/deploy.yml`
+- [x] `.github/workflows/deploy.yml`
 - [ ] `VITE_YHUB_WS_URL` repo variable wired into the build
-- [ ] README written against the skeleton
+- [x] README written against the skeleton
 - [ ] Two-machine end-to-end verification
 
 ---
@@ -1335,8 +1335,8 @@ per-contributor filtering and brush-to-zoom
 
 - [x] **V1** Two browser profiles edit the same room simultaneously; text converges both ways
 - [x] **V2** A cold joiner (never had the `.docx`) sees the full document
-- [ ] **V3** Refreshing a room you created reconnects — the join-or-create retry fires, no dead editor
-- [ ] **V4** `activity.by` values are real `deviceId`s, **not** `Garfield` — proves the image patch took
+- [x] **V3** Refreshing a room you created reconnects — the join-or-create retry fires, no dead editor
+- [x] **V4** `activity.by` values are real `deviceId`s, **not** `Garfield` — proves the image patch took
 - [ ] **V5** The chart shows ≥2 distinctly coloured stacked bands whose peaks match who typed when
 - [x] **V6** A late joiner sees the *full* history, including edits from before they arrived
 - [ ] **V7** In the **deployed Pages build**, DevTools → Network shows SuperDoc worker chunks
