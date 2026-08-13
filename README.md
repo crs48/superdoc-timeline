@@ -4,7 +4,9 @@ Upload a Word document, get a shareable link, edit it live with anyone who has t
 watch **who contributed what, when** in an area chart under the editor.
 
 Built as a ~4-hour take-home. The full design rationale, including the dead ends, lives in
-[docs/explorations/0001](docs/explorations/0001_%5B_%5D_SUPERDOC_CONTRIBUTIONS_TIMELINE.md).
+[docs/explorations/0001](docs/explorations/0001_%5Bx%5D_SUPERDOC_CONTRIBUTIONS_TIMELINE.md), and the
+plan for what remains in
+[docs/explorations/0002](docs/explorations/0002_%5B-%5D_MILESTONE_BUILD_PLAN.md).
 
 ## Architecture
 
