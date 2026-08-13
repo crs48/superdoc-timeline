@@ -398,39 +398,39 @@ in the store).
 - [x] `sessions.ts` segments + `xOf`/`tOf` + unit tests (round-trip, cut clamping)
 
 ### Track B2 — the map (~1.5 h)
-- [ ] `EditMap.tsx`: block rows (length-weighted, clamped), episode rects, seams, session
+- [x] `EditMap.tsx`: block rows (length-weighted, clamped), episode rects, seams, session
       labels, unplaced-activity gutter (R2), removed-content row
-- [ ] `[Map | Volume]` tabs in the dock; Volume = existing chart + brush + summary untouched
-- [ ] Map click → `tOf(x)` → `setHistoryAt` (M6 parity)
+- [x] `[Map | Volume]` tabs in the dock; Volume = existing chart + brush + summary untouched
+- [x] Map click → `tOf(x)` → `setHistoryAt` (M6 parity)
 
 ### Integration & ship gate
-- [ ] Hover episode → 0003 spotlight when implemented (guard: no-op otherwise)
-- [ ] README: new decision rows (episodes vs bursts; gap compression; custom SVG over recharts;
+- [x] Hover episode → 0003 spotlight when implemented (guard: no-op otherwise)
+- [x] README: new decision rows (episodes vs bursts; gap compression; custom SVG over recharts;
       dock chrome) 
-- [ ] Check off this exploration (`[-]` at Track A alone is legitimate)
+- [x] Check off this exploration (`[-]` at Track A alone is legitimate)
 
 **Cut order:** ownership toggle (never started) → spotlight integration → unplaced gutter →
 length-weighted rows (uniform fallback) → Volume tab tabs-polish → **never cut Track A**.
 
 ## Validation Checklist
 
-- [ ] **V1** Type a paragraph with 10–20 s pauses between sentences → **one** episode rect on
+- [x] **V1** Type a paragraph with 10–20 s pauses between sentences → **one** episode rect on
       the map (today: many bursts), while the Volume tab still shows the honest bursts
 - [ ] **V2** Two contributors editing different sections → visibly separate rows light up in
       each author's color; same section in turns → same row, alternating colors
-- [ ] **V3** Edit, wait > `SESSION_GAP`, edit again → two sessions with a hatched seam; chart
+- [x] **V3** Edit, wait > `SESSION_GAP`, edit again → two sessions with a hatched seam; chart
       spans full dock width; seam tooltip shows the elapsed gap
-- [ ] **V4** Map click inside a session → History Mode opens at that real timestamp; click a
+- [x] **V4** Map click inside a session → History Mode opens at that real timestamp; click a
       seam → boundary timestamp, no crash
-- [ ] **V5** Dock: collapse to header, expand, drag between clamps; height survives reload;
+- [x] **V5** Dock: collapse to header, expand, drag between clamps; height survives reload;
       document never hides behind the dock (no content under chrome)
 - [x] **V6** History Mode: banner visible in chrome while the preview overlays the editor;
       dock and header never scroll away
-- [ ] **V7** Backfill: opening a room with existing history fills newest sessions first;
+- [x] **V7** Backfill: opening a room with existing history fills newest sessions first;
       network shows ≤ 2 concurrent changeset fetches; reopening the room refetches nothing
 - [ ] **V8** Formatting-only edit (bold a word) → appears in the unplaced gutter, not dropped
 - [x] **V9** `pnpm test` — episodes, sessions, placement reconciliation suites green
-- [ ] **V10** 320 px viewport: dock defaults collapsed; expanded map scrolls/clamps legibly
+- [x] **V10** 320 px viewport: dock defaults collapsed; expanded map scrolls/clamps legibly
 
 ## References
 
