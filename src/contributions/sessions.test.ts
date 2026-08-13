@@ -1,49 +1,80 @@
 import { describe, expect, it } from 'vitest';
-import { SESSION_GAP_MS, buildSegments, tOf, xOf } from './sessions';
+import {
+  MIN_BURST_PX,
+  SEAM_PX,
+  SESSION_GAP_MS,
+  layoutSessions,
+  mergeSessions,
+  tOf,
+  xOf,
+} from './sessions';
 
 const MIN = 60_000;
+const span = (startedAt: number, endedAt: number) => ({ startedAt, endedAt });
 
-describe('buildSegments', () => {
-  it('returns no segments for no activity', () => {
-    expect(buildSegments([])).toEqual([]);
-  });
-
-  it('lays a single session across the full axis', () => {
-    const segments = buildSegments([{ startedAt: 0, endedAt: 10 * MIN }]);
-    expect(segments).toHaveLength(1);
-    expect(segments[0]).toMatchObject({ kind: 'session', x0: 0, x1: 1 });
-  });
-
-  it('cuts a long idle gap into a fixed seam and still fills the width', () => {
-    const segments = buildSegments([
-      { startedAt: 0, endedAt: 5 * MIN },
-      { startedAt: 60 * MIN, endedAt: 70 * MIN },
+describe('mergeSessions', () => {
+  it('keeps spans within the gap in one session', () => {
+    const sessions = mergeSessions([
+      span(0, MIN),
+      span(MIN + SESSION_GAP_MS - 1, MIN + SESSION_GAP_MS),
     ]);
-    expect(segments.map((s) => s.kind)).toEqual(['session', 'cut', 'session']);
-    const cut = segments[1]!;
-    // The 55-minute gap costs a fixed sliver, not 55 minutes of width.
-    expect(cut.x1 - cut.x0).toBeLessThan(0.05);
-    expect(segments[2]!.x1).toBe(1);
-    // Session widths are duration-proportional: 10min gets ~2x the 5min one.
-    const w0 = segments[0]!.x1 - segments[0]!.x0;
-    const w2 = segments[2]!.x1 - segments[2]!.x0;
-    expect(w2).toBeGreaterThan(w0);
+    expect(sessions).toHaveLength(1);
   });
 
-  it('keeps spans within the session gap in one session', () => {
-    const segments = buildSegments([
-      { startedAt: 0, endedAt: MIN },
-      { startedAt: MIN + SESSION_GAP_MS - 1, endedAt: MIN + SESSION_GAP_MS },
-    ]);
-    expect(segments).toHaveLength(1);
+  it('splits on gaps beyond the threshold', () => {
+    expect(mergeSessions([span(0, MIN), span(MIN + SESSION_GAP_MS + 1, 10 * MIN)])).toHaveLength(2);
   });
 });
 
-describe('xOf / tOf', () => {
-  const segments = buildSegments([
-    { startedAt: 0, endedAt: 10 * MIN },
-    { startedAt: 60 * MIN, endedAt: 65 * MIN },
-  ]);
+describe('layoutSessions', () => {
+  it('returns no segments for no activity', () => {
+    expect(layoutSessions([], [], 800).segments).toEqual([]);
+  });
+
+  it('stretches a small history to fill the container exactly', () => {
+    const { contentW, segments } = layoutSessions([span(0, 2 * MIN)], [span(0, 0)], 800);
+    expect(contentW).toBe(800);
+    expect(segments).toHaveLength(1);
+    expect(segments[0]).toMatchObject({ kind: 'session', x0: 0, x1: 800 });
+  });
+
+  it('cuts idle gaps into fixed seams and keeps widths duration-proportional', () => {
+    const { contentW, segments } = layoutSessions(
+      [span(0, 5 * MIN), span(60 * MIN, 70 * MIN)],
+      [],
+      1000,
+    );
+    expect(contentW).toBe(1000);
+    expect(segments.map((s) => s.kind)).toEqual(['session', 'cut', 'session']);
+    expect(segments[1]!.x1 - segments[1]!.x0).toBe(SEAM_PX);
+    const w0 = segments[0]!.x1 - segments[0]!.x0;
+    const w2 = segments[2]!.x1 - segments[2]!.x0;
+    // 10 active minutes gets more room than 5.
+    expect(w2).toBeGreaterThan(w0);
+    expect(segments[2]!.x1).toBe(1000);
+  });
+
+  it('grows past the container when budgets demand it (elastic width)', () => {
+    const spans = Array.from({ length: 10 }, (_, i) => span(i * 60 * MIN, i * 60 * MIN + 10 * MIN));
+    const { contentW } = layoutSessions(spans, [], 300);
+    expect(contentW).toBeGreaterThan(300);
+  });
+
+  it('gives a burst-dense session at least MIN_BURST_PX per burst', () => {
+    const bursts = Array.from({ length: 30 }, (_, i) => span(i * 1000, i * 1000));
+    const { contentW, segments } = layoutSessions([span(0, 30_000)], bursts, 100);
+    const sessionW = segments[0]!.x1 - segments[0]!.x0;
+    expect(sessionW).toBeGreaterThanOrEqual(30 * MIN_BURST_PX);
+    expect(contentW).toBeGreaterThanOrEqual(30 * MIN_BURST_PX);
+  });
+});
+
+describe('xOf / tOf (px space)', () => {
+  const { segments } = layoutSessions(
+    [span(0, 10 * MIN), span(60 * MIN, 65 * MIN)],
+    [],
+    900,
+  );
 
   it('round-trips times inside sessions', () => {
     for (const t of [0, 4 * MIN, 10 * MIN, 61 * MIN, 65 * MIN]) {
@@ -58,14 +89,12 @@ describe('xOf / tOf', () => {
 
   it('resolves an x inside the cut to the gap\'s end', () => {
     const cut = segments.find((s) => s.kind === 'cut')!;
-    const mid = (cut.x0 + cut.x1) / 2;
-    expect(tOf(mid, segments)).toBe(cut.t1);
+    expect(tOf((cut.x0 + cut.x1) / 2, segments)).toBe(cut.t1);
   });
 
   it('clamps out-of-range inputs to the axis ends', () => {
     expect(xOf(-MIN, segments)).toBe(0);
-    expect(xOf(120 * MIN, segments)).toBe(1);
-    expect(tOf(-0.5, segments)).toBe(0);
-    expect(tOf(1.5, segments)).toBe(65 * MIN);
+    expect(tOf(-5, segments)).toBe(0);
+    expect(tOf(10_000, segments)).toBe(65 * MIN);
   });
 });
