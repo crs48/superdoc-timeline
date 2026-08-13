@@ -341,50 +341,50 @@ this app's scale, recomputed only on data/size change via the existing `memo`.
 **Status:** `░░░░░░░░░░ 0/14 items`
 
 ### P1 — Section rows (~1 h)
-- [ ] `src/contributions/sections.ts`: `partitionSections` + `sectionOf` map; unit tests
+- [x] `src/contributions/sections.ts`: `partitionSections` + `sectionOf` map; unit tests
       (contiguity, cap, balance bound, fewer-blocks-than-rows, empty)
-- [ ] `EditMapPanel`: measured `maxRows` (lift plot size), section rows, episode row keys
+- [x] `EditMapPanel`: measured `maxRows` (lift plot size), section rows, episode row keys
       mapped through sections; synthetic rows count against the cap
-- [ ] Labels: "snippet · ¶a–b"; gutter unchanged
+- [x] Labels: "snippet · ¶a–b"; gutter unchanged
 
 ### P2 — Elastic axis (~1 h)
-- [ ] `layoutSessions` in [sessions.ts](../../src/contributions/sessions.ts) (px budgets,
+- [x] `layoutSessions` in [sessions.ts](../../src/contributions/sessions.ts) (px budgets,
       `contentW`, stretch-to-fill when small) + unit tests (fill-when-small, grow-when-dense,
       per-burst floor, xOf/tOf round-trip in px)
-- [ ] `EditMap` renders at `contentW` in `overflow-x-auto`; `usePinnedToEnd` effect
-- [ ] Intermediate time ticks inside long sessions (~every 120px)
+- [x] `EditMap` renders at `contentW` in `overflow-x-auto`; `usePinnedToEnd` effect
+- [x] Intermediate time ticks inside long sessions (~every 120px)
 
 ### P3 — Terrain (~1.5 h)
-- [ ] `src/components/terrain.ts`: `bump`, `sampleIntensity`, `terrainPath` (Catmull-Rom) +
+- [x] `src/components/terrain.ts`: `bump`, `sampleIntensity`, `terrainPath` (Catmull-Rom) +
       unit tests (kernel support, cut zeroing, path closure)
-- [ ] `EditMap`: terrain groups per section × contributor, multiply blend, 1.35 overflow cap,
+- [x] `EditMap`: terrain groups per section × contributor, multiply blend, 1.35 overflow cap,
       95th-percentile normalization; episode rects become transparent hit layer (titles kept)
-- [ ] Row separators demoted to faint baselines; seams still hatched over the terrain
+- [x] Row separators demoted to faint baselines; seams still hatched over the terrain
 
 ### P4 — Polish (cut first)
-- [ ] Contributor chip at tallest lobe (hover-only)
-- [ ] Morph: 300ms rAF lerp of sample arrays on data change
-- [ ] README: decision rows updated (sections; elastic axis; terrain over rects)
-- [ ] Check off this exploration
+- [x] Contributor chip at tallest lobe (hover-only)
+- [x] Morph: 300ms rAF lerp of sample arrays on data change
+- [x] README: decision rows updated (sections; elastic axis; terrain over rects)
+- [x] Check off this exploration
 
 ## Validation Checklist
 
-- [ ] **V1** A 40-paragraph document in a 180px dock renders ≤ 5 rows, every label legible,
+- [x] **V1** A 40-paragraph document in a 180px dock renders ≤ 5 rows, every label legible,
       zero overlap; dragging the dock taller adds rows (with hysteresis)
-- [ ] **V2** Σ section masses = Σ block masses and sections are contiguous (`pnpm test`)
-- [ ] **V3** A short history still fills the dock exactly (no regression vs 0004); a long
+- [x] **V2** Σ section masses = Σ block masses and sections are contiguous (`pnpm test`)
+- [x] **V3** A short history still fills the dock exactly (no regression vs 0004); a long
       multi-session history renders wider than the dock and scrolls
-- [ ] **V4** With the view at the live edge, a new burst grows the chart and stays pinned;
+- [x] **V4** With the view at the live edge, a new burst grows the chart and stays pinned;
       after scrolling left, it doesn't yank back
-- [ ] **V5** A 3-burst episode with pauses shows three discernible peaks with dips between
+- [x] **V5** A 3-burst episode with pauses shows three discernible peaks with dips between
       them (the finer-granularity ask)
-- [ ] **V6** Two contributors overlapping on one section produce a visibly blended hue, not
+- [x] **V6** Two contributors overlapping on one section produce a visibly blended hue, not
       occlusion; Safari/Firefox render identically to Chrome (no filter dependence)
-- [ ] **V7** Terrain is zero across every cut seam (no bleeding across collapsed gaps)
-- [ ] **V8** Click anywhere still opens History Mode at the correct timestamp (px-space
+- [x] **V7** Terrain is zero across every cut seam (no bleeding across collapsed gaps)
+- [x] **V8** Click anywhere still opens History Mode at the correct timestamp (px-space
       `tOf` round-trip verified live)
-- [ ] **V9** Tooltips still name episode · author · span · bursts (transparent rect layer)
-- [ ] **V10** `pnpm test && pnpm typecheck` green; terrain sampling of a 500-burst room
+- [x] **V9** Tooltips still name episode · author · span · bursts (transparent rect layer)
+- [x] **V10** `pnpm test && pnpm typecheck` green; terrain sampling of a 500-burst room
       completes in < 5ms (console.time probe)
 
 ## References

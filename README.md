@@ -2,11 +2,14 @@
 
 Upload a Word document, get a shareable link, edit it live with anyone who has the link — and
 watch **who contributed what, when, and where** in a timeline docked under the editor. The
-default **Map** view plots document paragraphs against gap-compressed time, one rectangle per
-*episode* (an author's contiguous work on one paragraph, pauses folded in); the **Volume** tab
-keeps the stacked area chart with a brush window, per-contributor totals, and legend solo. Click
-either chart to enter **History Mode**: the document as it was at that moment, reconstructed by
-the server, with a one-click return to live.
+default **Map** view is an organic edit terrain: document sections on the y-axis (as many rows
+as fit the dock, never more), gap-compressed elastic time on the x-axis (idle gaps collapse to
+seams; dense history grows the chart and scrolls, pinned to the live edge), and one smooth
+kernel-density lobe per burst — contributor-colored, translucent, multiply-blended where
+authors overlap. The **Volume** tab keeps the stacked area chart with a brush window,
+per-contributor totals, and legend solo. Click either chart to enter **History Mode**: the
+document as it was at that moment, reconstructed by the server, with a one-click return to
+live.
 
 Built as a ~4-hour take-home. The full design rationale, including the dead ends, lives in
 [docs/explorations/0001](docs/explorations/0001_%5Bx%5D_SUPERDOC_CONTRIBUTIONS_TIMELINE.md), and the
@@ -137,11 +140,16 @@ Two deliberately independent channels:
     charts use to skip non-trading hours; the piecewise mapping is exact both ways, which is what
     lets a click on compressed pixels land History Mode on a real timestamp.
 
-16. **The Map is ~200 lines of hand-rolled SVG, not recharts.** Recharts has neither
-    discontinuous time scales nor per-row rect series, and its `Brush` already taught this repo
-    what fighting the library costs (decision — see the uncontrolled-brush note in 0002). At
-    tens-of-episodes scale, `EditMap.tsx` with a `ResizeObserver` is smaller than any workaround
-    and owns its hit-testing outright.
+16. **The Map is hand-rolled SVG, not recharts — and its paint is math, not filters.** Recharts
+    has neither discontinuous time scales nor kernel-density series, and its `Brush` already
+    taught this repo what fighting the library costs (see the uncontrolled-brush note in 0002).
+    The organic look is four cheap ingredients: a raised-cosine kernel per burst (pauses show
+    as dips, same-author bursts fuse), Catmull-Rom smoothing, translucent fills under
+    `mix-blend-mode: multiply` (overlapping authors genuinely mix color), and joyplot-style row
+    overflow ([src/components/terrain.ts](src/components/terrain.ts)). The SVG "gooey" filter
+    was evaluated and rejected: its alpha-contrast trick degrades to plain blur in
+    Safari/Firefox. Episode rectangles survive as a transparent hit layer, so tooltips and
+    click-to-history are exact even though the paint is soft.
 
 17. **The timeline is chrome, not content.** `RoomView` is a fixed `h-dvh` shell: header and
     History-Mode banner pinned on top, the document as the only scrolling region, and the
@@ -149,6 +157,14 @@ Two deliberately independent channels:
     rAF-throttled), height persisted per profile, defaulting collapsed under 768px
     ([src/components/TimelineDock.tsx](src/components/TimelineDock.tsx),
     [src/store/dock.ts](src/store/dock.ts)).
+
+18. **Rows are measured, not data-driven; the axis is elastic, not fixed.** The map partitions
+    the document into at most ⌊plotH / 36px⌋ contiguous sections balanced by text mass
+    ([src/contributions/sections.ts](src/contributions/sections.ts)) — a 40-paragraph document
+    in a 180px dock is 3 legible rows, and dragging the dock taller buys more. Sessions earn
+    pixel budgets (24px per active minute, 10px per burst, 48px floor): short histories stretch
+    to fill the dock exactly, dense ones grow past it and scroll, auto-pinned to the live edge
+    until the user scrolls away ([src/contributions/sessions.ts](src/contributions/sessions.ts)).
 
 ## Run locally
 

@@ -23,6 +23,8 @@ export interface EditEpisode {
   /** Σ burst weights, so totals reconcile with the Volume tab (R8). */
   weight: number;
   burstCount: number;
+  /** Member burst ids, in order — the terrain paints per-burst kernels. */
+  burstIds: string[];
 }
 
 /** A pause longer than this ends an episode even inside the same block. */
@@ -97,6 +99,7 @@ interface OpenEpisode {
   endedAt: number;
   weight: number;
   burstCount: number;
+  burstIds: string[];
 }
 
 function close(open: OpenEpisode): EditEpisode {
@@ -136,6 +139,7 @@ export function foldEpisodes(
       current.endedAt = Math.max(current.endedAt, burst.endedAt);
       current.weight += burst.weight;
       current.burstCount += 1;
+      current.burstIds.push(burst.id);
       for (const id of touched) current.blocks.add(id);
       for (const root of roots) current.roots.add(root);
     } else {
@@ -149,6 +153,7 @@ export function foldEpisodes(
         endedAt: burst.endedAt,
         weight: burst.weight,
         burstCount: 1,
+        burstIds: [burst.id],
       });
     }
   }
