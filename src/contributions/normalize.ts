@@ -6,17 +6,32 @@ import type {
 import { colorForContributor, fallbackName } from '@/lib/color';
 
 /**
- * The chart metric.
+ * The chart metric: attributed characters when the server can see them, one
+ * per burst otherwise — which for SuperDoc traffic means bursts.
  *
- * y/hub's activity entries carry a time span, not a size, so "edit volume" has
- * to be derived. With `group=true&groupMaxGap=5000` one entry is one editing
- * burst, and counting bursts is coarse but monotone with effort — a fair,
- * honest proxy that costs nothing extra. Character-accurate volume needs
- * `delta=true` plus a delta walk; swapping to it means changing only this
- * function, because everything downstream treats `weight` as opaque.
+ * With `delta=true` an activity entry carries its ops, and an op belonging to
+ * this entry carries an `attribution`; ops echoing surrounding context do not.
+ * Counting the echoes triple-counts (a live two-writer probe measured 2100
+ * "naive" chars against 100+100 real), so only attributed ops count. But y/hub
+ * renders a SuperDoc v2 room's delta as its content-unit *metadata*, never the
+ * typed text, so fetchActivity doesn't request deltas today and every real
+ * entry takes the `|| 1` fallback. The delta walk stays because it is proven
+ * against plain text roots and is the upgrade path if y/hub learns to unfold
+ * SuperDoc content units. Everything downstream treats `weight` as opaque, so
+ * the definition of "volume" lives here and nowhere else.
  */
-function weightOf(_entry: YHubActivityEntry): number {
-  return 1;
+export function weightOf(entry: YHubActivityEntry): number {
+  let chars = 0;
+  for (const op of entry.delta?.children ?? []) {
+    if (typeof op.insert === 'string' && op.attribution?.insert?.length) {
+      chars += op.insert.length;
+    }
+    if (typeof op.delete === 'number' && op.attribution?.delete?.length) {
+      chars += op.delete;
+    }
+  }
+  // An entry whose delta is missing or undecodable is still one edit.
+  return chars || 1;
 }
 
 /** y/hub omits `by` when a change has no attribution; keep those visible. */

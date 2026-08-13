@@ -15,6 +15,11 @@ const WS_BASE = (import.meta.env.VITE_YHUB_WS_URL ?? 'ws://localhost:4403').repl
 /** Derived rather than configured twice: two URLs that must agree will disagree. */
 const HTTP_BASE = WS_BASE.replace(/^ws/, 'http');
 
+/** REST base for y/hub's activity/changeset APIs. */
+export function httpBase(): string {
+  return HTTP_BASE;
+}
+
 /**
  * SuperDoc v2 does not connect to `${serverUrl}/${documentId}`. It inserts a
  * protocol namespace, requesting `/api/ws/v1/{org}/sd2/v2.1/{documentId}`.
@@ -57,6 +62,12 @@ export async function fetchActivity(
     group: 'true',
     groupMaxGap: '5000',
     customAttributions: 'true',
+    // Deliberately NOT `delta: 'true'`. Character-accurate weights were built
+    // and verified against plain-Yjs text rooms (see weightOf and its tests),
+    // but y/hub renders a SuperDoc v2 room's delta as its content-unit
+    // metadata map — the typed text never appears — so for real traffic the
+    // flag costs ~3KB per entry and changes nothing. Flip it back on if y/hub
+    // learns to unfold SuperDoc content units.
     limit: '2000',
   });
   if (from != null) params.set('from', String(from));

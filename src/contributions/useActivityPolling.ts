@@ -21,6 +21,7 @@ const EDIT_REFRESH_MS = 1_200;
 export function useActivityPolling(roomId: string | null, enabled: boolean) {
   const ingest = useActivity((s) => s.ingest);
   const setError = useActivity((s) => s.setError);
+  const reset = useActivity((s) => s.reset);
   const events = useActivity((s) => s.events);
   const contributors = useActivity((s) => s.contributors);
   const deviceId = useIdentity((s) => s.deviceId);
@@ -33,6 +34,11 @@ export function useActivityPolling(roomId: string | null, enabled: boolean) {
 
   useEffect(() => {
     if (!roomId || !enabled) return;
+
+    // Rooms can change without a page load (hash navigation), and the store
+    // outlives the component — drop the previous room's events or its chart
+    // bleeds into this one.
+    reset();
 
     const controller = new AbortController();
     let cancelled = false;
@@ -58,7 +64,7 @@ export function useActivityPolling(roomId: string | null, enabled: boolean) {
       controller.abort();
       clearInterval(interval);
     };
-  }, [roomId, enabled, ingest, setError]);
+  }, [roomId, enabled, ingest, setError, reset]);
 
   /**
    * `onEditorUpdate` carries no author, delta, or size — it is useless as a
