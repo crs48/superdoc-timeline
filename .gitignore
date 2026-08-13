@@ -6,3 +6,4 @@ public/superdoc-workers/
 public/superdoc-assets/
 node_modules/
 dist/
+.playwright-mcp/
