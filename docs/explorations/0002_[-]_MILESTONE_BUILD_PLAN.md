@@ -222,12 +222,12 @@ README already defends it.
 
 **Tasks**
 
-- [ ] `<Brush dataKey="t" height={24} onChange={...} />` — **uncontrolled**, indices read out only
-- [ ] `SummaryCard` — per-contributor totals + share for the brushed window
-- [ ] Legend solo/focus — click toggles a `Set<string>` of hidden ids; `<Area hide={...}>`.
+- [x] `<Brush dataKey="t" height={24} onChange={...} />` — **uncontrolled**, indices read out only
+- [x] `SummaryCard` — per-contributor totals + share for the brushed window
+- [x] Legend solo/focus — click toggles a `Set<string>` of hidden ids; `<Area hide={...}>`.
       The legend already exists in [EditsPanel.tsx](src/components/EditsPanel.tsx); make its `<li>`
       a `<button>`
-- [ ] Sparse state — the empty and error states already ship; only "one contributor, two buckets"
+- [x] Sparse state — the empty and error states already ship; only "one contributor, two buckets"
       is unhandled
 
 **Definition of done:** dragging the brush updates the summary card; clicking a legend entry hides
@@ -515,10 +515,10 @@ should add — and the two hooks the corrections at the top of this document unl
 - [x] README decision #5 updated
 
 ### M4 — Interactivity ❌
-- [ ] `<Brush>` uncontrolled, indices via `onChange`
-- [ ] `SummaryCard` for the brushed window
-- [ ] Legend solo/focus via a hidden-id `Set`
-- [ ] Sparse-data state
+- [x] `<Brush>` uncontrolled, indices via `onChange`
+- [x] `SummaryCard` for the brushed window
+- [x] Legend solo/focus via a hidden-id `Set`
+- [x] Sparse-data state
 
 ### M5/M6 — Stretch ❌
 - [ ] `yjs@13.6.32` promoted to `dependencies`
@@ -552,7 +552,7 @@ Still to verify:
 - [x] **V10** (M3.5) The attributed-ops walk is exact on plain-Yjs text rooms (100 typed = 100
       counted; naive sum = 2100) — and real SuperDoc rooms yield metadata-only deltas, so the
       shipped chart honestly counts bursts instead. See the M3.5 outcome callout.
-- [ ] **V14** (M4) Brush drag updates the summary card without a render storm
+- [x] **V14** (M4) Brush drag updates the summary card without a render storm
 - [ ] **V15** (M6) Click a five-minute-old bucket → old text + banner → return to live, still connected
 - [x] **V16** Two people typing *simultaneously* for 30s produce two interleaved bands, not one
       swallowing the other (the open grouping question)

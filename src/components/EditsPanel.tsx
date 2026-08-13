@@ -30,6 +30,10 @@ export function EditsPanel({ series, connected, onBucketClick }: EditsPanelProps
       else next.add(id);
       return next;
     });
+    // Hiding an <Area> changes the chart's children, which remounts the
+    // uncontrolled Brush at full range — drop the stored window so the summary
+    // card can't disagree with a brush that visibly reset.
+    setBrush(null);
   };
 
   return (
