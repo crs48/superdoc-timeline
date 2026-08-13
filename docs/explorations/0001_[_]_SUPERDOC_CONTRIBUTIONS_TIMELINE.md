@@ -1283,40 +1283,40 @@ per-contributor filtering and brush-to-zoom
 
 ### Phase 0 — Spikes
 - [x] Run `ghcr.io/yjs/yhub/standalone:latest` locally on `:4400`
-- [ ] Two-tab SuperDoc v2 ↔ y/hub sync proven with `roomMode` create/join
+- [x] Two-tab SuperDoc v2 ↔ y/hub sync proven with `roomMode` create/join
 - [x] Determine what a cold joiner passes as `document.data`
 - [x] Confirm `GET /api/activity/v1/...` returns entries after typing (note the cartoon `by` values)
 
 ### Phase 1 — Scaffold
-- [ ] `pnpm create vite . --template react-ts`; deps installed
-- [ ] Tailwind v4 + shadcn (`button`, `input`, `card`, `skeleton`)
-- [ ] `vite.config.ts`: `base`, `@` alias
-- [ ] `src/types/*` — all five type modules
-- [ ] `store/identity.ts` with `persist`; `deviceId` minted once
-- [ ] `NameGate`, `UploadPanel`, `HashRouter` routes
+- [x] `pnpm create vite . --template react-ts`; deps installed
+- [x] Tailwind v4 (shadcn skipped — four styled elements didn't justify the scaffolding)
+- [x] `vite.config.ts`: `base`, `@` alias
+- [x] `src/types/*` — all five type modules
+- [x] `store/identity.ts` with `persist`; `deviceId` minted once
+- [x] `NameGate`, `UploadPanel`, `HashRouter` routes
 
 ### Phase 2 — Backend
-- [ ] `server/conf.js` with `yauth`-reading `readAuthInfo` + AGPL notice
-- [ ] `server/Dockerfile`
+- [x] `server/yhub.js` with `yauth`-reading `readAuthInfo` + AGPL notice (image inlines config in bin/yhub.js, not conf.js)
+- [x] `server/Dockerfile`
 - [ ] Railway service deployed from `server/`
 - [ ] Volume attached at `/data`
 - [ ] Domain generated; `wss://` reachable
 
 ### Phase 3 — Collaboration
-- [ ] `collab/yhub.ts` URL builders
-- [ ] `collab/superdoc-mount.ts` with `params.yauth` + `customAttributions`
-- [ ] `EditorPane` mount/`destroy()` lifecycle
-- [ ] Join-or-create retry on the two named exception codes
-- [ ] `ShareBar` copy-link
+- [x] `collab/yhub.ts` URL builders
+- [x] `collab/superdoc-mount.ts` with `params.yauth` + `customAttributions`
+- [x] `EditorPane` mount/`destroy()` lifecycle
+- [x] Join-or-create retry on the two named exception codes
+- [x] `ShareBar` copy-link
 
 ### Phase 4 — Attribution
-- [ ] `fetchActivity` with `Accept: application/json`
-- [ ] `normalize.ts` — stable event ids, weight metric
-- [ ] `bucket.ts` — adaptive width, zero-fill
-- [ ] `store/activity.ts` keyed by event id
-- [ ] `useActivityPolling` — interval + abort + edit-triggered refresh
-- [ ] `lib/color.ts` deterministic per-`deviceId` colour
-- [ ] `ContributionChart` + legend
+- [x] `fetchActivity` with `Accept: application/json`
+- [x] `normalize.ts` — stable event ids, weight metric
+- [x] `bucket.ts` — adaptive width, zero-fill
+- [x] `store/activity.ts` keyed by event id
+- [x] `useActivityPolling` — interval + abort + edit-triggered refresh
+- [x] `lib/color.ts` deterministic per-`deviceId` colour
+- [x] `ContributionChart` + legend
 
 ### Phase 5 — Polish
 - [ ] Connection status indicator
@@ -1333,18 +1333,18 @@ per-contributor filtering and brush-to-zoom
 
 ## Validation Checklist
 
-- [ ] **V1** Two browser profiles edit the same room simultaneously; text converges both ways
-- [ ] **V2** A cold joiner (never had the `.docx`) sees the full document
+- [x] **V1** Two browser profiles edit the same room simultaneously; text converges both ways
+- [x] **V2** A cold joiner (never had the `.docx`) sees the full document
 - [ ] **V3** Refreshing a room you created reconnects — the join-or-create retry fires, no dead editor
 - [ ] **V4** `activity.by` values are real `deviceId`s, **not** `Garfield` — proves the image patch took
 - [ ] **V5** The chart shows ≥2 distinctly coloured stacked bands whose peaks match who typed when
-- [ ] **V6** A late joiner sees the *full* history, including edits from before they arrived
+- [x] **V6** A late joiner sees the *full* history, including edits from before they arrived
 - [ ] **V7** In the **deployed Pages build**, DevTools → Network shows SuperDoc worker chunks
       resolving under `/superdoc-timeline/` and returning `200`
 - [ ] **V8** Railway redeploy → documents and history survive (proves the `/data` volume)
 - [ ] **V9** Killing the Railway service leaves the editor usable-ish and the chart empty — no crash,
       no unhandled rejection
-- [ ] **V10** `bucket.ts` unit test: empty input, single contributor, and a gap that must zero-fill
+- [x] **V10** `bucket.ts` unit test: empty input, single contributor, and a gap that must zero-fill
 - [ ] **V11** Chart is legible at 1280px and doesn't overflow the page horizontally at 768px
 
 ---

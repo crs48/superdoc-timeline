@@ -4,3 +4,5 @@
 .clj-kondo
 public/superdoc-workers/
 public/superdoc-assets/
+node_modules/
+dist/

@@ -1,0 +1,6 @@
+@import 'tailwindcss';
+
+/* SuperDoc sizes itself to the document; keep its background distinct from the page. */
+.superdoc-mount {
+  background: #f1f5f9;
+}
