@@ -1319,13 +1319,13 @@ per-contributor filtering and brush-to-zoom
 - [x] `ContributionChart` + legend
 
 ### Phase 5 — Polish
-- [ ] Connection status indicator
-- [ ] Empty / loading / error states
-- [ ] Names resolved from `customAttributions`
+- [x] Connection status indicator
+- [x] Empty / loading / error states
+- [x] Names resolved from `customAttributions`
 
 ### Phase 6 — Ship
 - [x] `.github/workflows/deploy.yml`
-- [ ] `VITE_YHUB_WS_URL` repo variable wired into the build
+- [x] `VITE_YHUB_WS_URL` repo variable wired into the build
 - [x] README written against the skeleton
 - [ ] Two-machine end-to-end verification
 
