@@ -1,10 +1,12 @@
 # SuperDoc Timeline
 
 Upload a Word document, get a shareable link, edit it live with anyone who has the link — and
-watch **who contributed what, when** in an area chart under the editor. Brush a time window for
-per-contributor totals, click a legend name to solo a contributor, and click the chart to enter
-**History Mode**: the document as it was at that moment, reconstructed by the server, with a
-one-click return to live.
+watch **who contributed what, when, and where** in a timeline docked under the editor. The
+default **Map** view plots document paragraphs against gap-compressed time, one rectangle per
+*episode* (an author's contiguous work on one paragraph, pauses folded in); the **Volume** tab
+keeps the stacked area chart with a brush window, per-contributor totals, and legend solo. Click
+either chart to enter **History Mode**: the document as it was at that moment, reconstructed by
+the server, with a one-click return to live.
 
 Built as a ~4-hour take-home. The full design rationale, including the dead ends, lives in
 [docs/explorations/0001](docs/explorations/0001_%5Bx%5D_SUPERDOC_CONTRIBUTIONS_TIMELINE.md), and the
@@ -115,6 +117,38 @@ Two deliberately independent channels:
     exported blank document — but the raw data-URL fetch yields `application/octet-stream`, which
     stalls the v2 collaboration engine silently. Wrapping the bytes in a
     `File` with the DOCX MIME type fixes it ([src/components/EditorPane.tsx](src/components/EditorPane.tsx)).
+
+14. **Episodes are a spatial fold over bursts, not a bigger time threshold.** "I edited this
+    paragraph, thinking between sentences" is invisible to any pause-based grouping. Instead,
+    every burst is *located*: the document just before and at the end of the burst are
+    reconstructed from the changeset API and diffed per native `blockId`
+    ([src/spotlight/burstDiff.ts](src/spotlight/burstDiff.ts) — one immutable, cached fetch per
+    burst boundary, backfilled newest-first at concurrency 2). Same author + same block folds
+    into one episode regardless of pauses ([src/contributions/episodes.ts](src/contributions/episodes.ts)).
+    Lineage is deliberately two different relations: ancestry roots keep an episode together
+    across a paragraph split, while display rows stay one-per-live-block — full canonicalization
+    would collapse an organically grown document onto its seed paragraph. Episode weights always
+    sum to burst weights, so the two tabs can never disagree about totals.
+
+15. **The Map's time axis cuts dead air.** Activity is grouped into sessions (gaps over 5 min
+    collapse to a fixed hatched seam) and session widths are proportional to active duration on
+    top of a floor, so the chart always fills its full width
+    ([src/contributions/sessions.ts](src/contributions/sessions.ts)). The same pattern financial
+    charts use to skip non-trading hours; the piecewise mapping is exact both ways, which is what
+    lets a click on compressed pixels land History Mode on a real timestamp.
+
+16. **The Map is ~200 lines of hand-rolled SVG, not recharts.** Recharts has neither
+    discontinuous time scales nor per-row rect series, and its `Brush` already taught this repo
+    what fighting the library costs (decision — see the uncontrolled-brush note in 0002). At
+    tens-of-episodes scale, `EditMap.tsx` with a `ResizeObserver` is smaller than any workaround
+    and owns its hit-testing outright.
+
+17. **The timeline is chrome, not content.** `RoomView` is a fixed `h-dvh` shell: header and
+    History-Mode banner pinned on top, the document as the only scrolling region, and the
+    timeline in an always-visible bottom dock — collapsible, drag-resizable (pointer capture,
+    rAF-throttled), height persisted per profile, defaulting collapsed under 768px
+    ([src/components/TimelineDock.tsx](src/components/TimelineDock.tsx),
+    [src/store/dock.ts](src/store/dock.ts)).
 
 ## Run locally
 
