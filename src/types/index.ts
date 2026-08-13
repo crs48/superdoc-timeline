@@ -21,6 +21,26 @@ export interface Contributor {
 }
 
 /**
+ * One op inside an activity entry's delta. Ops describing this entry's own
+ * change carry an `attribution`; ops echoing surrounding document context do
+ * not — that distinction is what makes character counting possible.
+ */
+export interface YHubDeltaOp {
+  type: string;
+  /** Inserted text (string ops) or embedded content (object ops). */
+  insert?: string | object;
+  /** Number of deleted characters. */
+  delete?: number;
+  /** Present only on ops that belong to this entry's change. */
+  attribution?: {
+    insert?: string[];
+    delete?: string[];
+    insertAt?: number;
+    deleteAt?: number;
+  };
+}
+
+/**
  * Wire shape of `GET /api/activity/v1/{org}/{docid}` with
  * `Accept: application/json`. Fields we don't request are absent.
  */
@@ -33,6 +53,11 @@ export interface YHubActivityEntry {
   by?: string;
   /** Only present when the request sets `customAttributions=true`. */
   customAttributions?: Array<{ k: string; v: string }> | null;
+  /** Only present when the request sets `delta=true`. */
+  delta?: {
+    type: 'delta';
+    children?: YHubDeltaOp[];
+  };
 }
 
 export interface YHubActivityResponse {

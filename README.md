@@ -1,10 +1,15 @@
 # SuperDoc Timeline
 
 Upload a Word document, get a shareable link, edit it live with anyone who has the link — and
-watch **who contributed what, when** in an area chart under the editor.
+watch **who contributed what, when** in an area chart under the editor. Brush a time window for
+per-contributor totals, click a legend name to solo a contributor, and click the chart to enter
+**History Mode**: the document as it was at that moment, reconstructed by the server, with a
+one-click return to live.
 
 Built as a ~4-hour take-home. The full design rationale, including the dead ends, lives in
-[docs/explorations/0001](docs/explorations/0001_%5B_%5D_SUPERDOC_CONTRIBUTIONS_TIMELINE.md).
+[docs/explorations/0001](docs/explorations/0001_%5Bx%5D_SUPERDOC_CONTRIBUTIONS_TIMELINE.md), and the
+plan for what remains in
+[docs/explorations/0002](docs/explorations/0002_%5B-%5D_MILESTONE_BUILD_PLAN.md).
 
 ## Architecture
 
@@ -57,17 +62,24 @@ Two deliberately independent channels:
    the display name travels separately as a custom attribution (`name:Alice`) so renames don't
    fork identity. Spoofable, yes — and irrelevant, because there is nothing to escalate to.
 
-5. **"Edit volume" means grouped edit bursts, not characters.** Activity entries carry a time
-   span, not a size. With `group=true&groupMaxGap=5000`, continuous typing is one burst and a real
-   pause starts a new one. The axis is labeled honestly ("bursts"). Character-accurate volume via
-   `delta=true` is an isolated upgrade in `normalize.ts` — everything downstream treats `weight`
-   as opaque.
+5. **"Edit volume" means grouped edit bursts — and the character upgrade was built, measured, and
+   deliberately reverted.** The activity API's `delta=true` returns each burst's ops, and
+   `weightOf()` in [src/contributions/normalize.ts](src/contributions/normalize.ts) counts only
+   ops carrying an `attribution` (the delta also echoes unattributed context ops; summing
+   everything measured 2100 "naive" chars against a real 100+100 in a two-writer probe). Verified
+   exact against plain-Yjs text rooms — and then discovered that y/hub renders a *SuperDoc v2*
+   room's delta as its content-unit metadata map: the typed text never appears, so for real
+   traffic the flag costs ~3KB per entry and every burst degrades to 1 anyway. The axis therefore
+   says "bursts", which is what the data can honestly support; the tested delta walk stays in the
+   code as the upgrade path if y/hub learns to unfold SuperDoc content units.
 
 6. **Open auth, and exactly what that exposes.** `getAccessType()` returns `'rw'` for everyone —
    the brief specifies public shareable URLs with no permission model. Consequence worth naming:
    `DELETE /api/ydoc/v1/...` and `POST /api/rollback/v1/...` are also unauthenticated, so anyone
-   with a room URL can destroy or rewind that document with `curl`. Acceptable for unguessable
-   `nanoid(12)` demo rooms; the first thing to fix in anything real.
+   with a room URL can destroy or rewind that document with `curl`. Subtler: any plain Yjs client
+   that writes *any* root into a SuperDoc room permanently bricks it — v2 refuses to reopen the
+   room with "conflicting room formats" (verified live; five lines of `y-websocket` suffice).
+   Acceptable for unguessable `nanoid(12)` demo rooms; the first thing to fix in anything real.
 
 7. **HashRouter** (`#/d/:roomId`) because GitHub Pages has no rewrite rules — deep links work with
    zero deploy configuration, at the cost of a `#` in the URL.
@@ -81,11 +93,25 @@ Two deliberately independent channels:
    them into `public/superdoc-workers/` and the app passes explicit `workerUrls` — which also
    pins them under the Pages base path in production.
 
-10. **No React StrictMode.** Its dev-only double-invoked effects destroy the first SuperDoc
+10. **No component library.** The planned shadcn/ui was dropped mid-build: this UI needs five
+    components, raw Tailwind utilities carry them fine, and a generated `components/ui/` tree
+    would have been scaffolding for a reviewer to wade through. Scope decision, not an oversight.
+
+11. **No React StrictMode.** Its dev-only double-invoked effects destroy the first SuperDoc
     instance mid-boot, after which the second cannot open the room (it hangs before the WebSocket
     with no exception). One live editor instance per mount is a v2 runtime requirement.
 
-11. **`BlankDOCX` must be typed.** A cold joiner has no file, so they seed from SuperDoc's
+12. **History Mode is a query, not a feature.** y/hub's changeset API returns the room's Yjs
+    update "as it was at `to`" — the backend already stores every version, so time travel is
+    `GET /api/changeset/v1/...?to=<ts>&ydoc=true` plus `Y.applyUpdate` on a throwaway doc
+    ([src/history/fetchDocumentAt.ts](src/history/fetchDocumentAt.ts)). There is deliberately no
+    client-side snapshot store — that would make the client a second system of record. The preview
+    is text-level (SuperDoc's Y.Doc schema was discovered at runtime: `content` → story shards →
+    `blocks[]` → `text`; formatting is intentionally not replayed), rendered as an overlay so the
+    live editor and its socket stay mounted underneath. One Yjs trap worth naming: reading an
+    untyped root with the wrong accessor silently re-types it — type only the roots you know.
+
+13. **`BlankDOCX` must be typed.** A cold joiner has no file, so they seed from SuperDoc's
     exported blank document — but the raw data-URL fetch yields `application/octet-stream`, which
     stalls the v2 collaboration engine silently. Wrapping the bytes in a
     `File` with the DOCX MIME type fixes it ([src/components/EditorPane.tsx](src/components/EditorPane.tsx)).
@@ -125,17 +151,19 @@ pnpm test && pnpm typecheck
 
 ## Intentionally left out
 
-AI edit summarization · timeline scrubbing / document rewind · rooms, permissions, accounts ·
-section-aware chunking · visual polish · tests beyond the bucketing logic (the only non-trivial
-pure logic in the app).
+AI edit summarization · continuous timeline scrubbing (History Mode is click-to-jump: one request
+per jump, not one per drag frame) · document rollback (the API exists; anyone can `curl` it, see
+decision 6) · rooms, permissions, accounts · section-aware chunking · visual polish · tests beyond
+the bucketing and normalization logic (the only non-trivial pure logic in the app).
 
 ## With more time
 
-- Character-accurate volume via the activity API's `delta=true`
+- Character-accurate volume, if/when y/hub can render SuperDoc content-unit deltas as text
+  (the client-side walk is already written and tested; see decision 5)
 - Real JWT auth so rollback/delete are not public
 - Push (y/hub webhooks or a WS side-channel) instead of 5s polling
 - Section attribution via the changeset API
-- Per-contributor filtering and brush-to-zoom on the chart
+- Rich-text rendering of History Mode (today it is a deliberate text-level preview)
 - An upstream issue for the `sd2/v2.1` path mismatch so the shim can be deleted
 
 ## Licensing

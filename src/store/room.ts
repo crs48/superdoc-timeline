@@ -25,13 +25,22 @@ export function takePendingUpload(): File | null {
 interface RoomState {
   status: RoomStatus;
   lastError: string | null;
+  /**
+   * History Mode: unix-ms timestamp being viewed, or null for live. The live
+   * editor stays mounted underneath — an overlay, never a teardown, because a
+   * remount costs a reconnect and can re-trip the create/join retry.
+   */
+  historyAt: number | null;
   setStatus: (status: RoomStatus) => void;
   setError: (message: string | null) => void;
+  setHistoryAt: (ts: number | null) => void;
 }
 
 export const useRoom = create<RoomState>()((set) => ({
   status: 'idle',
   lastError: null,
+  historyAt: null,
   setStatus: (status) => set({ status }),
   setError: (lastError) => set({ lastError, status: lastError ? 'error' : 'connecting' }),
+  setHistoryAt: (historyAt) => set({ historyAt }),
 }));
