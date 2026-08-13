@@ -379,13 +379,13 @@ in the store).
 **Status:** `░░░░░░░░░░ 0/16 items`
 
 ### Track A — chrome (~1 h, ship first, zero data risk)
-- [ ] `RoomView` → `h-dvh flex flex-col overflow-hidden`; editor pane `min-h-0 flex-1 overflow-auto`
-- [ ] Lift the History-Mode banner out of `HistoryPreview` into a chrome `HistoryBanner`
-- [ ] `TimelineDock`: header row (title · tabs placeholder · legend · collapse chevron), body
+- [x] `RoomView` → `h-dvh flex flex-col overflow-hidden`; editor pane `min-h-0 flex-1 overflow-auto`
+- [x] Lift the History-Mode banner out of `HistoryPreview` into a chrome `HistoryBanner`
+- [x] `TimelineDock`: header row (title · tabs placeholder · legend · collapse chevron), body
       hosting the existing `EditsPanel` content
-- [ ] Drag handle: pointer capture, clamp `[96, 0.6 × innerHeight]`, rAF-throttled
-- [ ] Persist `{ height, collapsed }` (zustand `persist`); default collapsed < 768 px
-- [ ] Verify V13 (narrow viewport) still passes with the dock
+- [x] Drag handle: pointer capture, clamp `[96, 0.6 × innerHeight]`, rAF-throttled
+- [x] Persist `{ height, collapsed }` (zustand `persist`); default collapsed < 768 px
+- [x] Verify V13 (narrow viewport) still passes with the dock
 
 ### Track B0 — placement index (~1 h)
 - [ ] Land 0003's `burstDiff.ts` (or extract if 0003 already merged) + `placementIndex.ts`
@@ -424,7 +424,7 @@ length-weighted rows (uniform fallback) → Volume tab tabs-polish → **never c
       seam → boundary timestamp, no crash
 - [ ] **V5** Dock: collapse to header, expand, drag between clamps; height survives reload;
       document never hides behind the dock (no content under chrome)
-- [ ] **V6** History Mode: banner visible in chrome while the preview overlays the editor;
+- [x] **V6** History Mode: banner visible in chrome while the preview overlays the editor;
       dock and header never scroll away
 - [ ] **V7** Backfill: opening a room with existing history fills newest sessions first;
       network shows ≤ 2 concurrent changeset fetches; reopening the room refetches nothing

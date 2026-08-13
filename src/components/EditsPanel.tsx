@@ -37,15 +37,12 @@ export function EditsPanel({ series, connected, onBucketClick }: EditsPanelProps
   };
 
   return (
-    <section className="border-t border-slate-200 bg-white">
-      <header className="flex flex-wrap items-center justify-between gap-2 px-4 pt-3">
-        <div>
-          <h2 className="text-sm font-semibold text-slate-800">Edits over time</h2>
-          <p className="text-xs text-slate-500">
-            Edit bursts per contributor, recorded by the collaboration server.
-            {onBucketClick ? ' Click the chart to view the document at that moment.' : ''}
-          </p>
-        </div>
+    <div className="h-full overflow-y-auto">
+      <header className="flex flex-wrap items-center justify-between gap-2 px-4 pt-1">
+        <p className="text-xs text-slate-500">
+          Edit bursts per contributor, recorded by the collaboration server.
+          {onBucketClick ? ' Click the chart to view the document at that moment.' : ''}
+        </p>
         <ul className="flex flex-wrap gap-1">
           {series.contributors.map((contributor) => {
             const hidden = hiddenIds.has(contributor.id);
@@ -109,6 +106,6 @@ export function EditsPanel({ series, connected, onBucketClick }: EditsPanelProps
           </p>
         )}
       </div>
-    </section>
+    </div>
   );
 }
