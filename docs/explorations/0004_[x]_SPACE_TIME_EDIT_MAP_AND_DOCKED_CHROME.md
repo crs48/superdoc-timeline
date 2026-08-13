@@ -416,7 +416,7 @@ length-weighted rows (uniform fallback) → Volume tab tabs-polish → **never c
 
 - [x] **V1** Type a paragraph with 10–20 s pauses between sentences → **one** episode rect on
       the map (today: many bursts), while the Volume tab still shows the honest bursts
-- [ ] **V2** Two contributors editing different sections → visibly separate rows light up in
+- [x] **V2** Two contributors editing different sections → visibly separate rows light up in
       each author's color; same section in turns → same row, alternating colors
 - [x] **V3** Edit, wait > `SESSION_GAP`, edit again → two sessions with a hatched seam; chart
       spans full dock width; seam tooltip shows the elapsed gap
@@ -428,7 +428,7 @@ length-weighted rows (uniform fallback) → Volume tab tabs-polish → **never c
       dock and header never scroll away
 - [x] **V7** Backfill: opening a room with existing history fills newest sessions first;
       network shows ≤ 2 concurrent changeset fetches; reopening the room refetches nothing
-- [ ] **V8** Formatting-only edit (bold a word) → appears in the unplaced gutter, not dropped
+- [x] **V8** Formatting-only edit (bold a word) → appears in the unplaced gutter, not dropped
 - [x] **V9** `pnpm test` — episodes, sessions, placement reconciliation suites green
 - [x] **V10** 320 px viewport: dock defaults collapsed; expanded map scrolls/clamps legibly
 
