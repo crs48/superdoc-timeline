@@ -59,11 +59,13 @@ Two deliberately independent channels:
    the display name travels separately as a custom attribution (`name:Alice`) so renames don't
    fork identity. Spoofable, yes — and irrelevant, because there is nothing to escalate to.
 
-5. **"Edit volume" means grouped edit bursts, not characters.** Activity entries carry a time
-   span, not a size. With `group=true&groupMaxGap=5000`, continuous typing is one burst and a real
-   pause starts a new one. The axis is labeled honestly ("bursts"). Character-accurate volume via
-   `delta=true` is an isolated upgrade in `normalize.ts` — everything downstream treats `weight`
-   as opaque.
+5. **"Edit volume" means attributed characters, and the naive version is silently wrong.** The
+   activity API's `delta=true` returns each burst's ops — but the delta echoes the authored op
+   *plus unattributed context ops repeating earlier document text*, so summing every insert
+   triple-counts and credits whoever typed last with everyone's words. `weightOf()` in
+   [src/contributions/normalize.ts](src/contributions/normalize.ts) counts only ops carrying an
+   `attribution`. `weight` is opaque to everything downstream, so the first version shipped honest
+   burst counts and this upgrade touched exactly one function.
 
 6. **Open auth, and exactly what that exposes.** `getAccessType()` returns `'rw'` for everyone —
    the brief specifies public shareable URLs with no permission model. Consequence worth naming:
@@ -83,11 +85,15 @@ Two deliberately independent channels:
    them into `public/superdoc-workers/` and the app passes explicit `workerUrls` — which also
    pins them under the Pages base path in production.
 
-10. **No React StrictMode.** Its dev-only double-invoked effects destroy the first SuperDoc
+10. **No component library.** The planned shadcn/ui was dropped mid-build: this UI needs five
+    components, raw Tailwind utilities carry them fine, and a generated `components/ui/` tree
+    would have been scaffolding for a reviewer to wade through. Scope decision, not an oversight.
+
+11. **No React StrictMode.** Its dev-only double-invoked effects destroy the first SuperDoc
     instance mid-boot, after which the second cannot open the room (it hangs before the WebSocket
     with no exception). One live editor instance per mount is a v2 runtime requirement.
 
-11. **`BlankDOCX` must be typed.** A cold joiner has no file, so they seed from SuperDoc's
+12. **`BlankDOCX` must be typed.** A cold joiner has no file, so they seed from SuperDoc's
     exported blank document — but the raw data-URL fetch yields `application/octet-stream`, which
     stalls the v2 collaboration engine silently. Wrapping the bytes in a
     `File` with the DOCX MIME type fixes it ([src/components/EditorPane.tsx](src/components/EditorPane.tsx)).
@@ -133,7 +139,6 @@ pure logic in the app).
 
 ## With more time
 
-- Character-accurate volume via the activity API's `delta=true`
 - Real JWT auth so rollback/delete are not public
 - Push (y/hub webhooks or a WS side-channel) instead of 5s polling
 - Section attribution via the changeset API

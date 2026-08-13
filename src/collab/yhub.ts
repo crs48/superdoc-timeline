@@ -57,6 +57,9 @@ export async function fetchActivity(
     group: 'true',
     groupMaxGap: '5000',
     customAttributions: 'true',
+    // Per-entry deltas carry the inserted/deleted text, which is what lets the
+    // chart measure characters instead of counting bursts. See weightOf().
+    delta: 'true',
     limit: '2000',
   });
   if (from != null) params.set('from', String(from));

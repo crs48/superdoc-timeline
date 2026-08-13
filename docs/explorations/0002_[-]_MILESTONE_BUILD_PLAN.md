@@ -136,13 +136,13 @@ is deliberately opaque, so the change is confined to two files.
 
 **Tasks**
 
-- [ ] Add `delta: 'true'` to the `URLSearchParams` in [fetchActivity](src/collab/yhub.ts)
-- [ ] Extend `YHubActivityEntry` in [src/types/index.ts](src/types/index.ts) with the delta shape
-- [ ] Replace `weightOf()` in [normalize.ts](src/contributions/normalize.ts) — **attributed ops only**
-- [ ] Relabel the axis and tooltip: `"bursts"` → `"characters"` in
+- [x] Add `delta: 'true'` to the `URLSearchParams` in [fetchActivity](src/collab/yhub.ts)
+- [x] Extend `YHubActivityEntry` in [src/types/index.ts](src/types/index.ts) with the delta shape
+- [x] Replace `weightOf()` in [normalize.ts](src/contributions/normalize.ts) — **attributed ops only**
+- [x] Relabel the axis and tooltip: `"bursts"` → `"characters"` in
       [ContributionChart.tsx](src/components/ContributionChart.tsx) and the
       [EditsPanel](src/components/EditsPanel.tsx) subtitle
-- [ ] Update README decision #5, which currently defends bursts
+- [x] Update README decision #5, which currently defends bursts
 
 ```ts
 /** Wire addition to YHubActivityEntry — only present when the request sets delta=true. */
@@ -458,7 +458,7 @@ should add — and the two hooks the corrections at the top of this document unl
 - [x] `src/store/room.ts`
 - [x] `HashRouter` routes `/` and `/d/:roomId`; `App.tsx` shell
 - [x] `pnpm build` green under the strict tsconfig
-- [ ] ~~shadcn `init` + components~~ — **skipped deliberately**; document it in the README
+- [x] ~~shadcn `init` + components~~ — **skipped deliberately**; document it in the README
 
 ### M1 — Name + Room ✅
 - [x] `NameGate` blocking all routes
@@ -495,11 +495,11 @@ should add — and the two hooks the corrections at the top of this document unl
 - [ ] Re-verify two-machine end-to-end **before the interview** (R5)
 
 ### M3.5 — Character volume 🚧
-- [ ] `delta: 'true'` in `fetchActivity`
-- [ ] Delta shape on `YHubActivityEntry`
-- [ ] `weightOf()` counting attributed ops only
-- [ ] Axis + tooltip + panel subtitle relabelled
-- [ ] README decision #5 updated
+- [x] `delta: 'true'` in `fetchActivity`
+- [x] Delta shape on `YHubActivityEntry`
+- [x] `weightOf()` counting attributed ops only
+- [x] Axis + tooltip + panel subtitle relabelled
+- [x] README decision #5 updated
 
 ### M4 — Interactivity ❌
 - [ ] `<Brush>` uncontrolled, indices via `onChange`
@@ -536,10 +536,10 @@ Already passing on `main`:
 Still to verify:
 
 - [ ] **V9** Railway redeploy → documents and history survive (re-check before the interview)
-- [ ] **V10** (M3.5) Typing 100 characters moves that band by ~100, not ~300
+- [x] **V10** (M3.5) Typing 100 characters moves that band by ~100, not ~300
 - [ ] **V14** (M4) Brush drag updates the summary card without a render storm
 - [ ] **V15** (M6) Click a five-minute-old bucket → old text + banner → return to live, still connected
-- [ ] **V16** Two people typing *simultaneously* for 30s produce two interleaved bands, not one
+- [x] **V16** Two people typing *simultaneously* for 30s produce two interleaved bands, not one
       swallowing the other (the open grouping question)
 
 ---

@@ -6,17 +6,27 @@ import type {
 import { colorForContributor, fallbackName } from '@/lib/color';
 
 /**
- * The chart metric.
+ * The chart metric: characters inserted or deleted in this burst.
  *
- * y/hub's activity entries carry a time span, not a size, so "edit volume" has
- * to be derived. With `group=true&groupMaxGap=5000` one entry is one editing
- * burst, and counting bursts is coarse but monotone with effort — a fair,
- * honest proxy that costs nothing extra. Character-accurate volume needs
- * `delta=true` plus a delta walk; swapping to it means changing only this
- * function, because everything downstream treats `weight` as opaque.
+ * With `delta=true` each activity entry carries its ops — but the delta echoes
+ * the authored op PLUS unattributed context ops repeating earlier document
+ * text. Counting every insert triple-counts and makes whoever typed last look
+ * like they wrote the document; only ops carrying an `attribution` belong to
+ * this entry. Everything downstream treats `weight` as opaque, so the
+ * definition of "volume" lives here and nowhere else.
  */
-function weightOf(_entry: YHubActivityEntry): number {
-  return 1;
+export function weightOf(entry: YHubActivityEntry): number {
+  let chars = 0;
+  for (const op of entry.delta?.children ?? []) {
+    if (typeof op.insert === 'string' && op.attribution?.insert?.length) {
+      chars += op.insert.length;
+    }
+    if (typeof op.delete === 'number' && op.attribution?.delete?.length) {
+      chars += op.delete;
+    }
+  }
+  // An entry whose delta is missing or undecodable is still one edit.
+  return chars || 1;
 }
 
 /** y/hub omits `by` when a change has no attribution; keep those visible. */

@@ -21,7 +21,7 @@ export function ContributionChart({ series }: { series: ActivitySeries }) {
         <YAxis allowDecimals={false} width={40} tick={{ fontSize: 11 }} />
         <Tooltip
           labelFormatter={(label) => (typeof label === 'number' ? clock(label) : String(label ?? ''))}
-          formatter={(value, name) => [`${String(value ?? 0)} bursts`, String(name ?? '')]}
+          formatter={(value, name) => [`${String(value ?? 0)} chars`, String(name ?? '')]}
           contentStyle={{ fontSize: 12 }}
         />
         {series.contributors.map((contributor) => (

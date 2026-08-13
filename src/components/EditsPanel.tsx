@@ -18,7 +18,7 @@ export function EditsPanel({ series, connected }: EditsPanelProps) {
         <div>
           <h2 className="text-sm font-semibold text-slate-800">Edits over time</h2>
           <p className="text-xs text-slate-500">
-            Edit bursts per contributor, recorded by the collaboration server.
+            Characters edited per contributor, recorded by the collaboration server.
           </p>
         </div>
         <ul className="flex flex-wrap gap-3">
