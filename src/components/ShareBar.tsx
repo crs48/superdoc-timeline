@@ -41,6 +41,14 @@ export function ShareBar({ status }: { status: RoomStatus }) {
         </span>
       </div>
       <div className="flex items-center gap-3">
+        <a
+          href={`${import.meta.env.BASE_URL}prototypes/0008/index.html`}
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs font-medium text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-slate-900"
+        >
+          UI prototypes
+        </a>
         <span className="text-xs text-slate-600">
           You are <span className="font-medium text-slate-900">{name}</span>
         </span>

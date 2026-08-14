@@ -4,6 +4,7 @@
 .clj-kondo
 public/superdoc-workers/
 public/superdoc-assets/
+public/prototypes/
 node_modules/
 dist/
 .playwright-mcp/

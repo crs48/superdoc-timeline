@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "superdoc:workers": "node scripts/copy-superdoc-workers.mjs",
-    "predev": "node scripts/copy-superdoc-workers.mjs",
+    "predev": "node scripts/copy-superdoc-workers.mjs && node scripts/copy-prototypes.mjs",
     "dev": "vite",
-    "prebuild": "node scripts/copy-superdoc-workers.mjs",
+    "prebuild": "node scripts/copy-superdoc-workers.mjs && node scripts/copy-prototypes.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
