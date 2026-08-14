@@ -37,9 +37,10 @@
 <h1>Edit-timeline UI alternatives</h1>
 <div class="sub">
   Prototype gallery for exploration 0008. One synthetic dataset — <b id="stat-doc"></b> —
-  rendered fourteen ways: six structural (A–F, exploration 0008), four organic stream
-  variants (G–J, exploration 0009), and four paradigm shifts (K–N, exploration 0010).
-  Deterministic (seeded); none of these are production code.
+  rendered fifteen ways: six structural (A–F, exploration 0008), four organic stream
+  variants (G–J, exploration 0009), four paradigm shifts (K–N, exploration 0010), and the
+  storyline deep-dive (O, exploration 0011). Deterministic (seeded); none of these are
+  production code.
 </div>
 <div class="tabs" id="tabs"></div>
 <div class="panel">
@@ -1075,6 +1076,152 @@ function renderBumps(el) {
   </svg>`;
 }
 
+/* ================= storyline deep-dive (exploration 0011) ================= */
+
+/**
+ * Storylines v2 — author threads as a first-class view.
+ * Fixed section bands sidestep the NP-hard general storyline layout; what
+ * remains is per-cell sub-lane assignment (barycenter-sorted against each
+ * thread's previous y to damp crossings), dormant thin threads across absent
+ * sessions, "curtain" nodes for whole-document sweeps, per-segment ribbon
+ * thickness, hover-solo, and editor filter chips.
+ */
+const slState = { hidden: new Set() };
+function renderStorylines(el) {
+  const plotH = 340, axisH = 18;
+  const layout = elasticLayout(SESSIONS);
+  const bands = sectionBands(BURSTS, plotH, 1);
+  const w = layout.width + LABEL_W;
+  const editors = EDITORS.filter((e) => !slState.hidden.has(e.id));
+
+  // Per (session, editor): sections touched + volume → focus or sweep node.
+  const nodes = new Map(); // editorId -> [{ci, x, mode, y, sec0, sec1, vol}]
+  const lastY = new Map();
+  SESSIONS.forEach((s, ci) => {
+    const seg = layout.segs.filter((g) => g.kind === 'session')[ci];
+    const cx = (seg.x0 + seg.x1) / 2;
+    const per = new Map(); // editorId -> Map(section -> chars)
+    for (const b of s.bursts) {
+      if (slState.hidden.has(b.editor)) continue;
+      const m = per.get(b.editor) ?? new Map();
+      for (const p of b.paras) {
+        const si = sectionOfPara(p);
+        m.set(si, (m.get(si) ?? 0) + b.chars / b.paras.length);
+      }
+      per.set(b.editor, m);
+    }
+    // Focus nodes bundle per section; barycenter order within each bundle.
+    const bundles = new Map(); // section -> [editorId]
+    const sweeps = [];
+    for (const [eid, m] of per) {
+      const secs = [...m.keys()].sort((a, b) => a - b);
+      const span = secs[secs.length - 1] - secs[0] + 1;
+      const vol = [...m.values()].reduce((a, v) => a + v, 0);
+      if (secs.length >= 4 || span >= 4) {
+        sweeps.push({ eid, sec0: secs[0], sec1: secs[secs.length - 1], vol });
+      } else {
+        let best = secs[0], bestV = 0;
+        for (const [si, v] of m) if (v > bestV) { best = si; bestV = v; }
+        const list = bundles.get(best) ?? [];
+        list.push(eid);
+        bundles.set(best, list);
+      }
+    }
+    const put = (eid, node) => {
+      const list = nodes.get(eid) ?? [];
+      list.push(node);
+      nodes.set(eid, list);
+      lastY.set(eid, node.y);
+    };
+    for (const [si, list] of bundles) {
+      const band = bands[si];
+      list.sort((a, b) => (lastY.get(a) ?? band.y) - (lastY.get(b) ?? band.y));
+      list.forEach((eid, i) => {
+        const y = band.y + band.h / 2 + (i - (list.length - 1) / 2) * 13;
+        put(eid, { ci, x: cx, mode: 'focus', y, sec0: si, sec1: si, vol: per.get(eid).get(si) });
+      });
+    }
+    for (const sw of sweeps) {
+      const y = (bands[sw.sec0].y + bands[sw.sec1].y + bands[sw.sec1].h) / 2;
+      put(sw.eid, { ci, x: cx, mode: 'sweep', y, ...sw });
+    }
+  });
+
+  const maxVol = Math.max(1, ...[...nodes.values()].flat().map((n) => n.vol));
+  const widthOf = (v) => 1.6 + 6.5 * Math.sqrt(v / maxVol);
+
+  let groups = '';
+  for (const ed of editors) {
+    const pts = nodes.get(ed.id) ?? [];
+    if (pts.length === 0) continue;
+    let inner = '';
+    // Curtains first (under the thread).
+    for (const n of pts) {
+      if (n.mode !== 'sweep') continue;
+      const y0 = bands[n.sec0].y + 3, y1 = bands[n.sec1].y + bands[n.sec1].h - 3;
+      const cw = 22;
+      inner += `<rect x="${n.x - cw / 2}" y="${y0}" width="${cw}" height="${y1 - y0}" rx="10" fill="${ed.color}" fill-opacity="0.18" stroke="${ed.color}" stroke-opacity="0.3"><title>${ed.name} — swept ${SECTIONS[n.sec0].title} → ${SECTIONS[n.sec1].title} (${fmtDay(SESSIONS[n.ci].t0)})</title></rect>`;
+    }
+    // Segments: solid ribbon between consecutive sessions, dormant across gaps.
+    for (let k = 1; k < pts.length; k += 1) {
+      const a = pts[k - 1], b = pts[k];
+      const mx = (a.x + b.x) / 2;
+      const d = `M${a.x.toFixed(1)},${a.y.toFixed(1)} C${mx.toFixed(1)},${a.y.toFixed(1)} ${mx.toFixed(1)},${b.y.toFixed(1)} ${b.x.toFixed(1)},${b.y.toFixed(1)}`;
+      if (b.ci - a.ci > 1) {
+        inner += `<path d="${d}" fill="none" stroke="${ed.color}" stroke-width="1.1" stroke-opacity="0.3" stroke-dasharray="1 5" stroke-linecap="round"/>`;
+      } else {
+        const sw = (widthOf(a.vol) + widthOf(b.vol)) / 2;
+        inner += `<path d="${d}" fill="none" stroke="${ed.color}" stroke-width="${sw.toFixed(1)}" stroke-opacity="0.75" stroke-linecap="round"/>`;
+      }
+    }
+    // Nodes.
+    for (const n of pts) {
+      if (n.mode === 'sweep') continue;
+      inner += `<circle cx="${n.x.toFixed(1)}" cy="${n.y.toFixed(1)}" r="${(widthOf(n.vol) / 2 + 1.6).toFixed(1)}" fill="${ed.color}"><title>${ed.name} — ${SECTIONS[n.sec0].title}, ${fmtDay(SESSIONS[n.ci].t0)} (~${Math.round(n.vol)} chars)</title></circle>`;
+    }
+    // Entry + exit labels.
+    const first = pts[0], last = pts[pts.length - 1];
+    inner += `<text x="${first.x - 8}" y="${first.y + 3.5}" font-size="9.5" font-weight="600" text-anchor="end" fill="${ed.color}">${ed.name}</text>`;
+    if (last.ci - first.ci > 2) inner += `<text x="${last.x + 9}" y="${last.y + 3.5}" font-size="9.5" font-weight="600" fill="${ed.color}">${ed.name}</text>`;
+    groups += `<g class="thread" data-ed="${ed.id}" style="transition:opacity .15s">${inner}</g>`;
+  }
+
+  const chips = EDITORS.map((e) => {
+    const off = slState.hidden.has(e.id);
+    return `<button data-chip="${e.id}" style="border:1px solid ${off ? '#cbd5e1' : e.color};border-radius:999px;padding:2px 10px;font-size:12px;cursor:pointer;background:${off ? '#f8fafc' : e.color};color:${off ? '#94a3b8' : '#fff'}">${e.name}</button>`;
+  }).join(' ');
+
+  el.innerHTML = `<div style="margin-bottom:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:12px;color:#64748b">Threads:</span> ${chips}
+      <span style="font-size:11.5px;color:#94a3b8;margin-left:6px">hover a thread to solo it · dotted = away · pill = whole-doc sweep</span>
+    </div>
+    <div class="scroll"><svg id="sl-svg" width="${w}" height="${plotH + axisH}">
+      <g transform="translate(${LABEL_W},0)">
+        ${axisSvg(layout, plotH + axisH - 5, plotH)}
+        ${bands.map((b) => `<line x1="0" y1="${b.y + b.h}" x2="${layout.width}" y2="${b.y + b.h}" stroke="#f1f5f9"/>`).join('')}
+        ${groups}
+      </g>
+      ${sectionLabelSvg(bands, LABEL_W)}
+    </svg></div>`;
+
+  el.querySelectorAll('button[data-chip]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const id = b.dataset.chip;
+      if (slState.hidden.has(id)) slState.hidden.delete(id); else slState.hidden.add(id);
+      renderStorylines(el);
+    }));
+  const svg = el.querySelector('#sl-svg');
+  const threads = [...svg.querySelectorAll('g.thread')];
+  for (const g of threads) {
+    g.addEventListener('mouseenter', () => {
+      for (const other of threads) other.style.opacity = other === g ? '1' : '0.12';
+    });
+    g.addEventListener('mouseleave', () => {
+      for (const other of threads) other.style.opacity = '1';
+    });
+  }
+}
+
 /* ================= gallery chrome ================= */
 const VIEWS = [
   {
@@ -1160,6 +1307,12 @@ const VIEWS = [
     desc: 'y is the rank of each section by activity, session over session — the document reordered by attention instead of position. Lines braid as focus shifts; dots take the dominant editor’s color; dashed = the section went quiet and returned.',
     note: 'Rank hides magnitude (a quiet day’s #1 ≠ a busy day’s #1) — dot size restores it. Best as a "where is the energy going" companion, not a map.',
     render: renderBumps,
+  },
+  {
+    key: 'storylines', title: 'O · Storylines v2 (the D deep-dive)',
+    desc: 'Author threads promoted to a first-class view: co-editing bundles into adjacent sub-lanes (barycenter-sorted to damp crossings), ribbon thickness = activity, dotted threads = away, and whole-document sweeps become translucent "curtains" instead of spaghetti. Hover to solo a thread; chips filter editors.',
+    note: 'Fixed section bands sidestep the NP-hard storyline layout. The two failure modes of view D — Tom’s reorg and Yuki’s sweep — are now the two most legible moments.',
+    render: renderStorylines,
   },
 ];
 
