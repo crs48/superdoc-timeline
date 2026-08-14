@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Edit-timeline UI alternatives — prototype gallery (exploration 0008)</title>
+<style>
+  :root {
+    --slate-900: #0f172a; --slate-600: #475569; --slate-500: #64748b;
+    --slate-400: #94a3b8; --slate-300: #cbd5e1; --slate-200: #e2e8f0;
+    --slate-100: #f1f5f9; --slate-50: #f8fafc;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px; background: #fff; color: var(--slate-900);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--slate-500); font-size: 13px; margin-bottom: 16px; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .tabs button {
+    border: 1px solid var(--slate-300); background: var(--slate-50); color: var(--slate-600);
+    padding: 6px 12px; border-radius: 8px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .tabs button.active { background: var(--slate-900); border-color: var(--slate-900); color: #fff; }
+  .panel { border: 1px solid var(--slate-200); border-radius: 12px; padding: 16px; }
+  .panel h2 { font-size: 15px; margin: 0 0 2px; }
+  .panel .desc { color: var(--slate-500); font-size: 12.5px; margin: 0 0 12px; max-width: 72em; }
+  .scroll { overflow-x: auto; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 10px 0 0; font-size: 12px; color: var(--slate-600); }
+  .legend span::before { content: "●"; margin-right: 5px; color: var(--c); }
+  .note { font-size: 11.5px; color: var(--slate-400); margin-top: 8px; }
+  svg text { user-select: none; }
+</style>
+</head>
+<body>
+<h1>Edit-timeline UI alternatives</h1>
+<div class="sub">
+  Prototype gallery for exploration 0008. One synthetic dataset — <b id="stat-doc"></b> —
+  rendered six ways. Deterministic (seeded); none of these are production code.
+</div>
+<div class="tabs" id="tabs"></div>
+<div class="panel">
+  <h2 id="view-title"></h2>
+  <p class="desc" id="view-desc"></p>
+  <div class="scroll" id="view"></div>
+  <div class="legend" id="legend"></div>
+  <p class="note" id="view-note"></p>
+</div>
+
+<script>
+'use strict';
+/* ================= seeded synthetic dataset =================
+ * "Project Aurora — product spec": 8 sections, 48 paragraphs, 6 editors,
+ * 18 days, ~25 sessions, ~1000 edit bursts across five scripted phases:
+ * draft → expand → reorg → review (incl. an edit war on ¶20–24) → polish.
+ */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const rnd = mulberry32(20260813);
+const rf = (a, b) => a + rnd() * (b - a);
+const ri = (a, b) => Math.floor(rf(a, b + 1));
+
+const EDITORS = [
+  { id: 'ada',    name: 'Ada',    color: '#2563eb' },
+  { id: 'marcus', name: 'Marcus', color: '#16a34a' },
+  { id: 'priya',  name: 'Priya',  color: '#d97706' },
+  { id: 'tom',    name: 'Tom',    color: '#db2777' },
+  { id: 'yuki',   name: 'Yuki',   color: '#7c3aed' },
+  { id: 'sam',    name: 'Sam',    color: '#0891b2' },
+];
+const editorById = Object.fromEntries(EDITORS.map((e) => [e.id, e]));
+
+const SECTIONS = [
+  { title: 'Overview',          p0: 1,  p1: 4 },
+  { title: 'Goals & Non-Goals', p0: 5,  p1: 9 },
+  { title: 'User Stories',      p0: 10, p1: 16 },
+  { title: 'Architecture',      p0: 17, p1: 24 },
+  { title: 'Data Model',        p0: 25, p1: 31 },
+  { title: 'Rollout Plan',      p0: 32, p1: 38 },
+  { title: 'Risks',             p0: 39, p1: 43 },
+  { title: 'Appendix',          p0: 44, p1: 48 },
+];
+const N_PARAS = 48;
+const sectionOfPara = (p) => SECTIONS.findIndex((s) => p >= s.p0 && p <= s.p1);
+
+const DAY = 86400e3, HOUR = 3600e3, MIN = 60e3;
+const BASE = Date.parse('2026-07-27T00:00:00Z'); // a Monday
+const at = (day, hour) => BASE + day * DAY + hour * HOUR;
+
+/* One scripted block of work: an editor working paragraphs [a,b] in a style.
+ * rate = bursts/min · styles: drift (drafting), random (review), war
+ * (ping-pong), sweep (linear copy-edit pass). */
+const SPECS = [
+  // Phase 1 — Ada drafts top-down (days 0–2)
+  { day: 0, hour: 9,  dur: 170, work: [{ e: 'ada', a: 1,  b: 9,  style: 'drift', rate: 0.5 }] },
+  { day: 0, hour: 14, dur: 120, work: [{ e: 'ada', a: 10, b: 16, style: 'drift', rate: 0.5 }] },
+  { day: 1, hour: 10, dur: 150, work: [{ e: 'ada', a: 17, b: 24, style: 'drift', rate: 0.5 }] },
+  { day: 1, hour: 15, dur: 90,  work: [{ e: 'ada', a: 25, b: 31, style: 'drift', rate: 0.5 }] },
+  { day: 2, hour: 9,  dur: 120, work: [{ e: 'ada', a: 32, b: 38, style: 'drift', rate: 0.5 }] },
+  { day: 2, hour: 13, dur: 60,  work: [{ e: 'ada', a: 39, b: 43, style: 'drift', rate: 0.5 }] },
+  { day: 2, hour: 16, dur: 40,  work: [{ e: 'ada', a: 44, b: 48, style: 'drift', rate: 0.5 }] },
+  // Phase 2 — Marcus & Priya expand (days 4–7)
+  { day: 4, hour: 10, dur: 140, work: [{ e: 'marcus', a: 17, b: 24, style: 'drift', rate: 0.45 },
+                                       { e: 'ada',    a: 1,  b: 4,  style: 'random', rate: 0.15 }] },
+  { day: 4, hour: 15, dur: 100, work: [{ e: 'priya', a: 25, b: 31, style: 'drift', rate: 0.45 }] },
+  { day: 5, hour: 9,  dur: 160, work: [{ e: 'marcus', a: 17, b: 24, style: 'drift', rate: 0.4 },
+                                       { e: 'priya',  a: 25, b: 31, style: 'drift', rate: 0.4 }] },
+  { day: 6, hour: 11, dur: 90,  work: [{ e: 'priya', a: 10, b: 16, style: 'drift', rate: 0.4 }] },
+  { day: 7, hour: 10, dur: 120, work: [{ e: 'marcus', a: 32, b: 38, style: 'drift', rate: 0.4 },
+                                       { e: 'ada',    a: 5,  b: 9,  style: 'random', rate: 0.15 }] },
+  // Phase 3 — Tom's reorg (day 8): touches everything, deletes a lot
+  { day: 8, hour: 13, dur: 180, work: [{ e: 'tom', a: 1, b: 48, style: 'random', rate: 0.55, del: 0.45 }] },
+  // Phase 4 — review (days 10–13), edit war on ¶20–24
+  { day: 10, hour: 9,  dur: 90, work: [{ e: 'ada',  a: 1,  b: 9,  style: 'random', rate: 0.3 },
+                                       { e: 'yuki', a: 39, b: 43, style: 'random', rate: 0.25 }] },
+  { day: 10, hour: 16, dur: 70, work: [{ e: 'marcus', a: 20, b: 24, style: 'war', rate: 0.45, del: 0.4 },
+                                       { e: 'priya',  a: 20, b: 24, style: 'war', rate: 0.45, del: 0.4 }] },
+  { day: 11, hour: 10, dur: 80, work: [{ e: 'priya',  a: 20, b: 24, style: 'war', rate: 0.4, del: 0.4 },
+                                       { e: 'marcus', a: 20, b: 24, style: 'war', rate: 0.4, del: 0.4 },
+                                       { e: 'sam',    a: 44, b: 48, style: 'drift', rate: 0.3 }] },
+  { day: 12, hour: 14, dur: 60, work: [{ e: 'tom', a: 17, b: 24, style: 'random', rate: 0.3 },
+                                       { e: 'sam', a: 10, b: 16, style: 'random', rate: 0.3 }] },
+  { day: 13, hour: 11, dur: 50, work: [{ e: 'ada', a: 1, b: 48, style: 'random', rate: 0.3 }] },
+  // Phase 5 — Yuki's polish sweep + sign-off (days 15–17)
+  { day: 15, hour: 9,  dur: 200, work: [{ e: 'yuki', a: 1, b: 48, style: 'sweep', rate: 0.5 }] },
+  { day: 16, hour: 10, dur: 60,  work: [{ e: 'ada',  a: 1,  b: 4,  style: 'random', rate: 0.3 },
+                                        { e: 'yuki', a: 32, b: 43, style: 'random', rate: 0.3 }] },
+  { day: 17, hour: 15, dur: 45,  work: [{ e: 'ada', a: 1, b: 9, style: 'random', rate: 0.3 }] },
+];
+
+function genBursts() {
+  const bursts = [];
+  let seq = 0;
+  for (const spec of SPECS) {
+    const t0 = at(spec.day, spec.hour);
+    for (const w of spec.work) {
+      const n = Math.round(spec.dur * w.rate * rf(0.85, 1.15));
+      let pos = w.a;
+      for (let i = 0; i < n; i += 1) {
+        // Time: spread across the session with jitter; keeps ordering loose.
+        const t = t0 + (i / n) * spec.dur * MIN + rf(-40, 40) * 1e3;
+        const dur = rf(3, 22) * 1e3;
+        // Position by style
+        let p;
+        if (w.style === 'drift') {
+          pos = Math.min(w.b, Math.max(w.a, pos + (rnd() < 0.75 ? rf(0, 0.9) : rf(-1.5, 0))));
+          p = Math.round(pos);
+        } else if (w.style === 'sweep') {
+          p = Math.round(w.a + (i / Math.max(1, n - 1)) * (w.b - w.a));
+        } else if (w.style === 'war') {
+          p = ri(w.a, w.b);
+        } else {
+          p = ri(w.a, w.b);
+        }
+        const paras = [p];
+        if (rnd() < 0.25 && p < w.b) paras.push(p + 1); // spillover to neighbor
+        const del = w.del != null && rnd() < w.del;
+        bursts.push({
+          id: `b${seq++}`, editor: w.e,
+          t0: t, t1: t + dur,
+          paras, chars: Math.round(rf(8, del ? 220 : 150)), del,
+        });
+      }
+    }
+  }
+  bursts.sort((a, b) => a.t0 - b.t0);
+  return bursts;
+}
+const BURSTS = genBursts();
+
+/* Episodes: fold consecutive bursts by one editor with gap ≤ 12 min and
+ * nearby paragraphs (≤ 5 apart) — the toy version of episodes.ts. */
+function foldEpisodes(bursts) {
+  const open = new Map();
+  const out = [];
+  const near = (set, paras) => [...paras].some((p) => [...set].some((q) => Math.abs(p - q) <= 5));
+  for (const b of bursts) {
+    const cur = open.get(b.editor);
+    if (cur && b.t0 - cur.t1 <= 12 * MIN && near(cur.paras, b.paras)) {
+      cur.t1 = Math.max(cur.t1, b.t1);
+      b.paras.forEach((p) => cur.paras.add(p));
+      cur.chars += b.chars;
+      cur.bursts.push(b);
+    } else {
+      if (cur) out.push(cur);
+      open.set(b.editor, {
+        id: b.id, editor: b.editor, t0: b.t0, t1: b.t1,
+        paras: new Set(b.paras), chars: b.chars, bursts: [b],
+      });
+    }
+  }
+  for (const cur of open.values()) out.push(cur);
+  return out.sort((a, b) => a.t0 - b.t0);
+}
+const EPISODES = foldEpisodes(BURSTS);
+
+/* Display sessions: all-editor activity merged on a 60-min gap (the
+ * literature's between-session boundary — exploration 0007, finding 7). */
+function displaySessions(bursts) {
+  const out = [];
+  for (const b of bursts) {
+    const last = out[out.length - 1];
+    if (last && b.t0 - last.t1 <= 60 * MIN) {
+      last.t1 = Math.max(last.t1, b.t1);
+      last.bursts.push(b);
+    } else {
+      out.push({ t0: b.t0, t1: b.t1, bursts: [b] });
+    }
+  }
+  return out;
+}
+const SESSIONS = displaySessions(BURSTS);
+
+/* ================= shared helpers ================= */
+const fmtDay = (t) => new Date(t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+const fmtClock = (t) => new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' });
+const fmtGap = (ms) => {
+  const d = Math.round(ms / DAY);
+  if (d >= 1) return `${d} day${d === 1 ? '' : 's'}`;
+  return `${Math.round(ms / HOUR)} h`;
+};
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+/* Elastic session axis: width ∝ √(active minutes), labeled gap pills. */
+function elasticLayout(sessions, opts = {}) {
+  const gapW = opts.gapW ?? 44;
+  const scale = opts.scale ?? 10;
+  const segs = [];
+  let x = 0;
+  sessions.forEach((s, i) => {
+    if (i > 0) {
+      const prev = sessions[i - 1];
+      segs.push({ kind: 'gap', t0: prev.t1, t1: s.t0, x0: x, x1: x + gapW });
+      x += gapW;
+    }
+    const w = Math.max(56, Math.sqrt((s.t1 - s.t0) / MIN) * scale);
+    segs.push({ kind: 'session', t0: s.t0, t1: s.t1, x0: x, x1: x + w, session: s });
+    x += w;
+  });
+  const xOf = (t) => {
+    for (const g of segs) {
+      if (t <= g.t0) return g.x0;
+      if (t <= g.t1) {
+        if (g.kind === 'gap') return g.x1;
+        return g.x0 + ((t - g.t0) / (g.t1 - g.t0)) * (g.x1 - g.x0);
+      }
+    }
+    return x;
+  };
+  return { segs, width: x, xOf };
+}
+
+/* Section rows with activity-elastic heights over a burst subset. */
+function sectionBands(bursts, plotH, boost = 3) {
+  const act = new Set();
+  for (const b of bursts) for (const p of b.paras) act.add(sectionOfPara(p));
+  const raw = SECTIONS.map((s, i) => {
+    const mass = (s.p1 - s.p0 + 1);
+    return { i, s, w: act.has(i) ? mass * boost : mass * 0.35 };
+  });
+  const total = raw.reduce((a, r) => a + r.w, 0);
+  let y = 0;
+  return raw.map((r) => {
+    const h = (r.w / total) * plotH;
+    const band = { ...r, y, h, active: act.has(r.i) };
+    y += h;
+    return band;
+  });
+}
+
+function axisSvg(layout, y, plotH) {
+  let out = '';
+  for (const g of layout.segs) {
+    if (g.kind === 'session') {
+      out += `<line x1="${g.x0}" y1="0" x2="${g.x0}" y2="${plotH}" stroke="#e2e8f0"/>`;
+      if (g.x1 - g.x0 >= 56) {
+        out += `<text x="${g.x0 + 4}" y="${y}" font-size="10" fill="#64748b">${fmtDay(g.t0)} · ${fmtClock(g.t0)}</text>`;
+      }
+    } else {
+      const cx = (g.x0 + g.x1) / 2;
+      out += `<rect x="${g.x0}" y="0" width="${g.x1 - g.x0}" height="${plotH}" fill="#f8fafc"/>` +
+        `<rect x="${cx - 18}" y="${plotH / 2 - 8}" width="36" height="16" rx="8" fill="#f1f5f9" stroke="#e2e8f0"/>` +
+        `<text x="${cx}" y="${plotH / 2 + 3.5}" font-size="9" fill="#94a3b8" text-anchor="middle">${fmtGap(g.t1 - g.t0)}</text>`;
+    }
+  }
+  return out;
+}
+
+function sectionLabelSvg(bands, labelW) {
+  return bands.map((b) =>
+    `<text x="${labelW - 8}" y="${b.y + b.h / 2 + 3.5}" font-size="10" text-anchor="end" fill="${b.active ? '#475569' : '#cbd5e1'}">${esc(b.s.title)}</text>`
+  ).join('');
+}
+
+/* ================= the six views ================= */
+const LABEL_W = 118;
+
+/* --- A: episode capsules + spines --- */
+function renderCapsules(el, sessions, episodes) {
+  const plotH = 320, axisH = 18;
+  const subBursts = sessions.flatMap((s) => s.bursts);
+  const layout = elasticLayout(sessions);
+  const bands = sectionBands(subBursts, plotH);
+  const w = layout.width + LABEL_W;
+  const inWindow = episodes.filter((e) => sessions.some((s) => e.t0 >= s.t0 - MIN && e.t0 <= s.t1 + MIN));
+
+  let marks = '';
+  for (const e of inWindow) {
+    const secs = [...new Set([...e.paras].map(sectionOfPara))].sort((a, b) => a - b);
+    const x0 = layout.xOf(e.t0), x1 = Math.max(layout.xOf(e.t1), x0 + 8);
+    const c = editorById[e.editor].color;
+    // contiguous runs of touched sections → one capsule each
+    let run = [secs[0]];
+    const runs = [];
+    for (let i = 1; i <= secs.length; i += 1) {
+      if (i < secs.length && secs[i] === secs[i - 1] + 1) run.push(secs[i]);
+      else { runs.push(run); run = [secs[i]]; }
+    }
+    for (const r of runs) {
+      const y0 = bands[r[0]].y + 2, y1 = bands[r[r.length - 1]].y + bands[r[r.length - 1]].h - 2;
+      marks += `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" rx="7" fill="${c}" fill-opacity="0.16" stroke="${c}" stroke-opacity="0.35"><title>${editorById[e.editor].name} · ${fmtDay(e.t0)} ${fmtClock(e.t0)}–${fmtClock(e.t1)} · ${e.bursts.length} bursts · ~${e.chars} chars</title></rect>`;
+    }
+    // burst texture inside the capsule
+    for (const b of e.bursts) {
+      const bx = layout.xOf((b.t0 + b.t1) / 2);
+      for (const p of b.paras) {
+        const band = bands[sectionOfPara(p)];
+        const frac = (p - band.s.p0 + 0.5) / (band.s.p1 - band.s.p0 + 1);
+        const by = band.y + frac * band.h;
+        const r = Math.max(1.4, Math.sqrt(b.chars) / 4);
+        marks += `<circle cx="${bx}" cy="${by}" r="${r}" fill="${c}" fill-opacity="0.65"${b.del ? ' stroke="#fff" stroke-width="0.8"' : ''}/>`;
+      }
+    }
+  }
+
+  el.innerHTML = `<svg width="${w}" height="${plotH + axisH}">
+    <g transform="translate(${LABEL_W},0)">
+      ${axisSvg(layout, plotH + axisH - 5, plotH)}
+      ${bands.map((b) => `<line x1="0" y1="${b.y + b.h}" x2="${layout.width}" y2="${b.y + b.h}" stroke="#f1f5f9"/>`).join('')}
+      ${marks}
+    </g>
+    ${sectionLabelSvg(bands, LABEL_W)}
+  </svg>`;
+}
+
+/* --- B: overview strip + brush + detail --- */
+const brushState = { i0: Math.max(0, SESSIONS.length - 4), i1: SESSIONS.length - 1 };
+function renderBrush(el) {
+  const stripH = 46, w = 1060, pad = 2;
+  const bw = (w - pad * (SESSIONS.length - 1)) / SESSIONS.length;
+  const maxChars = Math.max(...SESSIONS.map((s) => s.bursts.reduce((a, b) => a + b.chars, 0)));
+
+  let strip = '';
+  SESSIONS.forEach((s, i) => {
+    const x = i * (bw + pad);
+    const byEditor = new Map();
+    for (const b of s.bursts) byEditor.set(b.editor, (byEditor.get(b.editor) ?? 0) + b.chars);
+    const total = [...byEditor.values()].reduce((a, v) => a + v, 0);
+    const h = 8 + 30 * Math.sqrt(total / maxChars);
+    let y = stripH - h;
+    for (const [eid, v] of [...byEditor.entries()].sort((a, b) => b[1] - a[1])) {
+      const sh = (v / total) * h;
+      strip += `<rect x="${x}" y="${y}" width="${bw}" height="${sh}" fill="${editorById[eid].color}" fill-opacity="0.8"/>`;
+      y += sh;
+    }
+    strip += `<rect data-i="${i}" x="${x}" y="0" width="${bw + pad}" height="${stripH}" fill="transparent" style="cursor:pointer"><title>${fmtDay(s.t0)} · ${fmtClock(s.t0)}–${fmtClock(s.t1)}</title></rect>`;
+  });
+  const bx0 = brushState.i0 * (bw + pad), bx1 = brushState.i1 * (bw + pad) + bw;
+  strip += `<rect x="${bx0}" y="0" width="${bx1 - bx0}" height="${stripH}" fill="#2563eb" fill-opacity="0.08" stroke="#2563eb" stroke-opacity="0.6" rx="4" pointer-events="none"/>`;
+
+  el.innerHTML = `
+    <svg id="brush-strip" width="${w}" height="${stripH + 14}">
+      ${strip}
+      <text x="0" y="${stripH + 11}" font-size="10" fill="#94a3b8">${fmtDay(SESSIONS[0].t0)}</text>
+      <text x="${w}" y="${stripH + 11}" font-size="10" fill="#94a3b8" text-anchor="end">${fmtDay(SESSIONS[SESSIONS.length - 1].t1)}</text>
+    </svg>
+    <div style="font-size:11.5px;color:#94a3b8;margin:2px 0 10px">
+      Overview: whole history, one block per session (height = volume, colors = editor share).
+      Click or drag across blocks to choose the detail window.</div>
+    <div id="brush-detail" class="scroll"></div>`;
+
+  const svg = el.querySelector('#brush-strip');
+  let dragFrom = null;
+  const idxOf = (ev) => {
+    const t = ev.target.closest('[data-i]');
+    return t ? Number(t.dataset.i) : null;
+  };
+  svg.addEventListener('mousedown', (ev) => { const i = idxOf(ev); if (i != null) { dragFrom = i; setBrush(i, i); } });
+  svg.addEventListener('mousemove', (ev) => { if (dragFrom == null) return; const i = idxOf(ev); if (i != null) setBrush(Math.min(dragFrom, i), Math.max(dragFrom, i)); });
+  window.addEventListener('mouseup', () => { dragFrom = null; });
+  function setBrush(i0, i1) {
+    brushState.i0 = i0; brushState.i1 = i1;
+    renderBrush(el); // re-render strip + detail (cheap at this scale)
+  }
+  renderCapsules(el.querySelector('#brush-detail'), SESSIONS.slice(brushState.i0, brushState.i1 + 1), EPISODES);
+}
+
+/* --- C: session × section heat cells --- */
+function renderHeat(el) {
+  const cell = 30, gap = 3, top = 40;
+  const w = LABEL_W + SESSIONS.length * (cell + gap);
+  const h = top + SECTIONS.length * (cell + gap);
+  let cells = '';
+  let maxV = 0;
+  const grid = SESSIONS.map((s) => SECTIONS.map(() => new Map()));
+  SESSIONS.forEach((s, si) => {
+    for (const b of s.bursts) for (const p of b.paras) {
+      const m = grid[si][sectionOfPara(p)];
+      m.set(b.editor, (m.get(b.editor) ?? 0) + b.chars);
+      maxV = Math.max(maxV, [...m.values()].reduce((a, v) => a + v, 0));
+    }
+  });
+  SESSIONS.forEach((s, si) => {
+    const x = LABEL_W + si * (cell + gap);
+    cells += `<text x="${x + cell / 2}" y="${top - 22}" font-size="8.5" fill="#94a3b8" text-anchor="middle" transform="rotate(-40 ${x + cell / 2} ${top - 22})">${fmtDay(s.t0).replace(/^\w+, /, '')}</text>`;
+    SECTIONS.forEach((sec, ri) => {
+      const y = top + ri * (cell + gap);
+      const m = grid[si][ri];
+      if (m.size === 0) {
+        cells += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="5" fill="#f8fafc"/>`;
+        return;
+      }
+      const entries = [...m.entries()].sort((a, b) => b[1] - a[1]);
+      const total = entries.reduce((a, [, v]) => a + v, 0);
+      const alpha = 0.25 + 0.7 * Math.sqrt(total / maxV);
+      const [lead, leadV] = entries[0];
+      const shared = entries.length > 1 && entries[1][1] / total >= 0.3;
+      cells += `<g><title>${sec.title} · ${fmtDay(s.t0)} — ${entries.map(([e, v]) => `${editorById[e].name} ${Math.round((v / total) * 100)}%`).join(', ')}</title>`;
+      if (shared) {
+        const c1 = editorById[lead].color, c2 = editorById[entries[1][0]].color;
+        cells += `<path d="M${x},${y} h${cell} v${cell} z" fill="${c1}" fill-opacity="${alpha}"/>` +
+                 `<path d="M${x},${y} v${cell} h${cell} z" fill="${c2}" fill-opacity="${alpha}"/>`;
+      } else {
+        cells += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="5" fill="${editorById[lead].color}" fill-opacity="${alpha}"/>`;
+      }
+      cells += '</g>';
+    });
+  });
+  const labels = SECTIONS.map((sec, ri) =>
+    `<text x="${LABEL_W - 8}" y="${top + ri * (cell + gap) + cell / 2 + 3.5}" font-size="10" text-anchor="end" fill="#475569">${esc(sec.title)}</text>`).join('');
+  el.innerHTML = `<svg width="${w}" height="${h}">${labels}${cells}</svg>`;
+}
+
+/* --- D: author threads --- */
+function renderThreads(el) {
+  const plotH = 320, axisH = 18;
+  const layout = elasticLayout(SESSIONS);
+  const bands = sectionBands(BURSTS, plotH, 1); // uniform-ish rows read best here
+  const w = layout.width + LABEL_W;
+
+  let paths = '';
+  for (const ed of EDITORS) {
+    const eps = EPISODES.filter((e) => e.editor === ed.id);
+    if (eps.length === 0) continue;
+    const pts = eps.map((e) => {
+      const secs = [...e.paras].map(sectionOfPara);
+      const mid = secs.sort((a, b) => a - b)[Math.floor(secs.length / 2)];
+      return {
+        x: (layout.xOf(e.t0) + layout.xOf(e.t1)) / 2,
+        y: bands[mid].y + bands[mid].h / 2,
+        e,
+      };
+    });
+    let d = `M${pts[0].x},${pts[0].y}`;
+    for (let i = 1; i < pts.length; i += 1) {
+      const a = pts[i - 1], b = pts[i];
+      const mx = (a.x + b.x) / 2;
+      d += ` C${mx},${a.y} ${mx},${b.y} ${b.x},${b.y}`;
+    }
+    paths += `<path d="${d}" fill="none" stroke="${ed.color}" stroke-opacity="0.45" stroke-width="1.6"/>`;
+    for (const p of pts) {
+      const r = Math.max(2.5, Math.sqrt(p.e.chars) / 6);
+      paths += `<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${ed.color}" fill-opacity="0.75"><title>${ed.name} · ${fmtDay(p.e.t0)} ${fmtClock(p.e.t0)} · ~${p.e.chars} chars</title></circle>`;
+    }
+  }
+  el.innerHTML = `<svg width="${w}" height="${plotH + axisH}">
+    <g transform="translate(${LABEL_W},0)">
+      ${axisSvg(layout, plotH + axisH - 5, plotH)}
+      ${bands.map((b) => `<line x1="0" y1="${b.y + b.h}" x2="${layout.width}" y2="${b.y + b.h}" stroke="#f1f5f9"/>`).join('')}
+      ${paths}
+    </g>
+    ${sectionLabelSvg(bands, LABEL_W)}
+  </svg>`;
+}
+
+/* --- E: continuous position field (Draftback) --- */
+function renderField(el) {
+  const plotH = 340, axisH = 18;
+  const layout = elasticLayout(SESSIONS);
+  const w = layout.width + LABEL_W;
+  const yOf = (p) => ((p - 0.5) / N_PARAS) * plotH;
+
+  let dots = '';
+  for (const b of BURSTS) {
+    const x = layout.xOf((b.t0 + b.t1) / 2);
+    const c = editorById[b.editor].color;
+    for (const p of b.paras) {
+      const r = Math.max(1.3, Math.sqrt(b.chars) / 4.5);
+      dots += `<circle cx="${x}" cy="${yOf(p)}" r="${r}" fill="${c}" fill-opacity="0.45"${b.del ? ' stroke="#fff" stroke-width="0.7"' : ''}/>`;
+    }
+  }
+  const secLines = SECTIONS.map((s) =>
+    `<line x1="0" y1="${yOf(s.p0 - 0.5)}" x2="${layout.width}" y2="${yOf(s.p0 - 0.5)}" stroke="#f1f5f9"/>`).join('');
+  const labels = SECTIONS.map((s) =>
+    `<text x="${LABEL_W - 8}" y="${yOf((s.p0 + s.p1) / 2) + 3.5}" font-size="10" text-anchor="end" fill="#475569">${esc(s.title)}</text>`).join('');
+  el.innerHTML = `<svg width="${w}" height="${plotH + axisH}">
+    <g transform="translate(${LABEL_W},0)">${axisSvg(layout, plotH + axisH - 5, plotH)}${secLines}${dots}</g>
+    ${labels}
+  </svg>`;
+}
+
+/* --- F: ownership bands (history-flow-ish) --- */
+function renderOwnership(el) {
+  const colW = 34, gap = 26, top = 16, maxH = 330;
+  // Cumulative inserted chars per (section, editor) at each session end.
+  const cum = SECTIONS.map(() => new Map());
+  const columns = [];
+  for (const s of SESSIONS) {
+    for (const b of s.bursts) {
+      if (b.del) continue; // insert-only ownership: a deliberate simplification
+      for (const p of b.paras) {
+        const m = cum[sectionOfPara(p)];
+        m.set(b.editor, (m.get(b.editor) ?? 0) + b.chars / b.paras.length);
+      }
+    }
+    columns.push({
+      t: s.t1,
+      secs: cum.map((m) => new Map(m)),
+      total: cum.reduce((a, m) => a + [...m.values()].reduce((x, v) => x + v, 0), 0),
+    });
+  }
+  const maxTotal = columns[columns.length - 1].total;
+  const px = (v) => (v / maxTotal) * maxH;
+
+  // Per column: ordered segments [{key, y0, y1, color}] in document order.
+  const segCols = columns.map((col, i) => {
+    const x = LABEL_W + i * (colW + gap);
+    let y = top + (maxH - px(col.total)); // grow downward-anchored: doc "grows" over time
+    const segs = [];
+    col.secs.forEach((m, si) => {
+      const entries = [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+      for (const [eid, v] of entries) {
+        const h = px(v);
+        if (h < 0.4) { y += h; continue; }
+        segs.push({ key: `${si}:${eid}`, x, y0: y, y1: y + h, color: editorById[eid].color, si });
+        y += h;
+      }
+    });
+    return { x, segs, t: col.t };
+  });
+
+  let out = '';
+  // connective tissue between adjacent columns
+  for (let i = 1; i < segCols.length; i += 1) {
+    const prev = Object.fromEntries(segCols[i - 1].segs.map((s) => [s.key, s]));
+    for (const seg of segCols[i].segs) {
+      const p = prev[seg.key];
+      if (!p) continue;
+      out += `<path d="M${p.x + colW},${p.y0} L${seg.x},${seg.y0} L${seg.x},${seg.y1} L${p.x + colW},${p.y1} Z" fill="${seg.color}" fill-opacity="0.18"/>`;
+    }
+  }
+  for (const col of segCols) {
+    for (const seg of col.segs) {
+      out += `<rect x="${col.x}" y="${seg.y0}" width="${colW}" height="${seg.y1 - seg.y0}" fill="${seg.color}" fill-opacity="0.85"><title>${SECTIONS[seg.si].title}</title></rect>`;
+    }
+    // section separators
+    let acc = null;
+    for (const seg of col.segs) {
+      if (acc != null && seg.si !== acc) {
+        out += `<line x1="${col.x}" y1="${seg.y0}" x2="${col.x + colW}" y2="${seg.y0}" stroke="#fff" stroke-width="1.4"/>`;
+      }
+      acc = seg.si;
+    }
+    out += `<text x="${col.x + colW / 2}" y="${top + maxH + 12}" font-size="8.5" fill="#94a3b8" text-anchor="middle">${fmtDay(col.t).replace(/^\w+, /, '')}</text>`;
+  }
+  const w = LABEL_W + segCols.length * (colW + gap);
+  el.innerHTML = `<svg width="${w}" height="${top + maxH + 20}">
+    <text x="${LABEL_W - 8}" y="${top + 10}" font-size="10" text-anchor="end" fill="#94a3b8">doc top ↓</text>
+    ${out}</svg>`;
+}
+
+/* ================= gallery chrome ================= */
+const VIEWS = [
+  {
+    key: 'capsules', title: 'A · Episode capsules + spines',
+    desc: 'One connected shape per act of editing: a rounded capsule spans every section an episode touched; burst dots give internal texture (white-ringed = mostly deletion). Sections with no activity compress. This is exploration 0006’s P1 direction.',
+    note: 'Fixes the "disjointed lobes" problem structurally — one episode is one shape, however many sections it crossed.',
+    render: (el) => renderCapsules(el, SESSIONS, EPISODES),
+  },
+  {
+    key: 'brush', title: 'B · Overview strip + brush → detail',
+    desc: 'The whole 18-day history always fits in one strip; a draggable brush picks the window the capsule view renders. This is the structural answer to "scales equally well for small and large docs" (0006 P3).',
+    note: 'Try brushing the day-8 reorg (tall pink block) vs the two-session edit war (green/amber blocks around day 10–11).',
+    render: renderBrush,
+  },
+  {
+    key: 'heat', title: 'C · Session × section heat cells',
+    desc: 'The dense tier: one cell per (session × section), hue = dominant editor, split-diagonal when two editors share ≥30%, opacity = √volume. Bounded ink at any history length — the GitHub-contribution-graph idiom.',
+    note: 'Never more cells than sessions × sections regardless of burst count. Within-session order is gone — that’s what brushing into A restores.',
+    render: renderHeat,
+  },
+  {
+    key: 'threads', title: 'D · Author threads (storyline)',
+    desc: 'One thread per editor weaving between the sections they edited; dot size = episode volume. Reads as narrative: Ada drafts top-to-bottom, Marcus and Priya split Architecture/Data-Model, Tom’s reorg jumps everywhere, Yuki’s sweep runs diagonally through everything.',
+    note: 'Beautiful at ≤4 concurrent editors; the day-8 reorg already shows the spaghetti risk.',
+    render: renderThreads,
+  },
+  {
+    key: 'field', title: 'E · Continuous position field (Draftback)',
+    desc: 'No section rows at all: y is continuous paragraph position, every burst is a dot. The document’s "visual fingerprint" — drafting diagonals, the ¶20–24 edit war knot, Yuki’s polish sweep as a clean diagonal stroke.',
+    note: 'The most honest picture of where edits landed; loses the labeled row gutter (labels become a hover/zoom concern).',
+    render: renderField,
+  },
+  {
+    key: 'ownership', title: 'F · Ownership bands (history flow)',
+    desc: 'Long-run concept: each column is the document at a session’s end, stacked in document order, colored by who owns the characters (insert-only approximation here). The doc visibly grows; sections shift as ownership mixes.',
+    note: 'The only view showing survivorship rather than activity. Real version needs per-character attribution — the data y/hub already has (exploration 0007).',
+    render: renderOwnership,
+  },
+];
+
+const tabsEl = document.getElementById('tabs');
+const viewEl = document.getElementById('view');
+let activeKey = 'capsules';
+function show(key) {
+  activeKey = key;
+  const v = VIEWS.find((x) => x.key === key);
+  document.getElementById('view-title').textContent = v.title;
+  document.getElementById('view-desc').textContent = v.desc;
+  document.getElementById('view-note').textContent = v.note;
+  viewEl.innerHTML = '';
+  v.render(viewEl);
+  [...tabsEl.children].forEach((b) => b.classList.toggle('active', b.dataset.key === key));
+}
+for (const v of VIEWS) {
+  const b = document.createElement('button');
+  b.textContent = v.title.slice(0, 1) + ' · ' + v.title.split('· ')[1];
+  b.dataset.key = v.key;
+  b.onclick = () => show(v.key);
+  tabsEl.appendChild(b);
+}
+document.getElementById('legend').innerHTML = EDITORS.map(
+  (e) => `<span style="--c:${e.color}">${e.name}</span>`).join('');
+document.getElementById('stat-doc').textContent =
+  `48 paragraphs · 6 editors · ${BURSTS.length} bursts · ${EPISODES.length} episodes · ${SESSIONS.length} sessions · 18 days`;
+show(activeKey);
+</script>
+</body>
+</html>
