@@ -37,7 +37,8 @@
 <h1>Edit-timeline UI alternatives</h1>
 <div class="sub">
   Prototype gallery for exploration 0008. One synthetic dataset — <b id="stat-doc"></b> —
-  rendered six ways. Deterministic (seeded); none of these are production code.
+  rendered ten ways: six structural (A–F, exploration 0008) and four organic stream
+  variants (G–J, exploration 0009). Deterministic (seeded); none of these are production code.
 </div>
 <div class="tabs" id="tabs"></div>
 <div class="panel">
@@ -586,6 +587,313 @@ function renderOwnership(el) {
     ${out}</svg>`;
 }
 
+/* ================= organic stream machinery (exploration 0009) ================= */
+
+/** Blend a hex color toward white (t>0) or black (t<0). */
+function shade(hex, t) {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = (v) => Math.round(t >= 0 ? v + (255 - v) * t : v * (1 + t));
+  return `rgb(${ch(n >> 16)},${ch((n >> 8) & 255)},${ch(n & 255)})`;
+}
+
+const STEP = 6; // stream sample cadence, px
+
+/** Deposit bursts as raised-cosine kernels over the elastic axis; zero in gaps. */
+function kernelSeries(bursts, layout, weightOf = (b) => b.chars) {
+  const n = Math.ceil(layout.width / STEP) + 1;
+  const out = new Float32Array(n);
+  for (const b of bursts) {
+    const x0 = layout.xOf(b.t0), x1 = layout.xOf(b.t1);
+    const c = (x0 + x1) / 2;
+    const w = Math.max(14, (x1 - x0) / 2 + 14);
+    const i0 = Math.max(0, Math.floor((c - w) / STEP));
+    const i1 = Math.min(n - 1, Math.ceil((c + w) / STEP));
+    for (let i = i0; i <= i1; i += 1) {
+      const d = Math.abs(i * STEP - c);
+      if (d < w) out[i] += weightOf(b) * 0.5 * (1 + Math.cos((Math.PI * d) / w));
+    }
+  }
+  for (const g of layout.segs) {
+    if (g.kind !== 'gap') continue;
+    const i0 = Math.max(0, Math.ceil(g.x0 / STEP)), i1 = Math.min(n - 1, Math.floor(g.x1 / STEP));
+    for (let i = i0; i <= i1; i += 1) out[i] = 0;
+  }
+  return out;
+}
+
+/** Byron–Wattenberg inside-out order: sort by onset, alternate sides. */
+function insideOut(seriesList) {
+  const onset = seriesList.map((s, i) => ({ i, on: s.values.findIndex((v) => v > 0) }));
+  onset.sort((a, b) => a.on - b.on);
+  const top = [], bottom = [];
+  onset.forEach((o, k) => (k % 2 === 0 ? bottom : top).push(o.i));
+  return [...bottom, ...top.reverse()];
+}
+
+/** Silhouette stack: baseline −Σ/2. Returns per-series {y0[],y1[]} plus max thickness. */
+function stackSilhouette(seriesList, order) {
+  const n = seriesList[0]?.values.length ?? 0;
+  const totals = new Float32Array(n);
+  for (const s of seriesList) for (let i = 0; i < n; i += 1) totals[i] += s.values[i];
+  const maxTotal = Math.max(1e-6, ...totals);
+  const acc = new Float32Array(n);
+  const stacked = new Array(seriesList.length);
+  for (const idx of order) {
+    const s = seriesList[idx];
+    const y0 = new Float32Array(n), y1 = new Float32Array(n);
+    for (let i = 0; i < n; i += 1) {
+      y0[i] = -totals[i] / 2 + acc[i];
+      y1[i] = y0[i] + s.values[i];
+      acc[i] += s.values[i];
+    }
+    stacked[idx] = { y0, y1 };
+  }
+  return { stacked, maxTotal };
+}
+
+/** Catmull-Rom path through points [[x,y],...] (open). */
+function catmull(pts) {
+  if (pts.length < 2) return '';
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i += 1) {
+    const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+    d += ` C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)},${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)}` +
+         ` ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)},${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)}` +
+         ` ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+
+/** Closed organic band: smooth top edge + reversed smooth bottom edge. */
+function bandPath(xs, y0, y1, yMap) {
+  const top = [], bot = [];
+  for (let i = 0; i < xs.length; i += 1) {
+    top.push([xs[i], yMap(y1[i])]);
+    bot.push([xs[i], yMap(y0[i])]);
+  }
+  return `${catmull(top)} L${bot[bot.length - 1][0].toFixed(1)},${bot[bot.length - 1][1].toFixed(1)} ${catmull(bot.reverse()).replace(/^M/, 'L')} Z`;
+}
+
+/** Label anchor: the sample where a layer is thickest (null if never thick enough). */
+function widestPoint(y0, y1, minPx, yMap) {
+  let best = -1, bestT = minPx;
+  for (let i = 2; i < y0.length - 2; i += 1) {
+    const t = y1[i] - y0[i];
+    if (t > bestT) { bestT = t; best = i; }
+  }
+  return best < 0 ? null : { x: best * STEP, y: yMap((y0[best] + y1[best]) / 2) };
+}
+
+/* --- G: editor streamgraph with Music-Timeline drill-down --- */
+let streamFocus = null; // editor id | null
+function renderStream(el) {
+  const plotH = 300, axisH = 18;
+  const layout = elasticLayout(SESSIONS);
+  const w = layout.width + LABEL_W;
+  const mid = plotH / 2;
+
+  let layers, palette, labelOf;
+  if (streamFocus == null) {
+    layers = EDITORS.map((e) => ({
+      key: e.id,
+      values: kernelSeries(BURSTS.filter((b) => b.editor === e.id), layout),
+    }));
+    palette = (k) => editorById[k].color;
+    labelOf = (k) => editorById[k].name;
+  } else {
+    const mine = BURSTS.filter((b) => b.editor === streamFocus);
+    layers = SECTIONS.map((s, si) => ({
+      key: `s${si}`,
+      values: kernelSeries(mine.filter((b) => b.paras.some((p) => sectionOfPara(p) === si)), layout),
+    }));
+    palette = (k) => shade(editorById[streamFocus].color, -0.35 + 0.75 * (Number(k.slice(1)) / (SECTIONS.length - 1)));
+    labelOf = (k) => SECTIONS[Number(k.slice(1))].title;
+  }
+  const live = layers.filter((l) => l.values.some((v) => v > 0));
+  const order = insideOut(live);
+  const { stacked, maxTotal } = stackSilhouette(live, order);
+  const scale = (plotH * 0.86) / maxTotal;
+  const yMap = (v) => mid - v * scale; // silhouette values are centered on 0
+  const xs = Array.from(live[0].values, (_, i) => i * STEP);
+
+  let paths = '', labels = '';
+  live.forEach((l, i) => {
+    const { y0, y1 } = stacked[i];
+    paths += `<path data-key="${l.key}" d="${bandPath(xs, y0, y1, yMap)}" fill="${palette(l.key)}" fill-opacity="0.82" stroke="#fff" stroke-width="0.6" style="cursor:${streamFocus == null ? 'pointer' : 'default'}"><title>${esc(labelOf(l.key))}${streamFocus == null ? ' — click to drill in' : ''}</title></path>`;
+    const anchor = widestPoint(y0, y1, 15 / scale, yMap);
+    if (anchor) labels += `<text x="${anchor.x}" y="${anchor.y + 3.5}" font-size="10.5" font-weight="600" fill="#fff" text-anchor="middle" pointer-events="none">${esc(labelOf(l.key))}</text>`;
+  });
+
+  el.innerHTML = `${streamFocus != null ? `<div style="margin-bottom:8px"><button id="stream-back" style="border:1px solid #cbd5e1;background:#f8fafc;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer">← All editors</button> <span style="font-size:12px;color:#64748b">showing ${esc(editorById[streamFocus].name)}'s stream, split by section (light = later sections)</span></div>` : ''}
+  <div class="scroll"><svg width="${w}" height="${plotH + axisH}">
+    <g transform="translate(${LABEL_W},0)">${axisSvg(layout, plotH + axisH - 5, plotH)}${paths}${labels}</g>
+  </svg></div>`;
+  el.querySelector('#stream-back')?.addEventListener('click', () => { streamFocus = null; renderStream(el); });
+  if (streamFocus == null) {
+    el.querySelectorAll('path[data-key]').forEach((p) =>
+      p.addEventListener('click', () => { streamFocus = p.dataset.key; renderStream(el); }));
+  }
+}
+
+/* --- H: section river (doc-ordered layers, editor-gradient fills) --- */
+function renderSectionRiver(el) {
+  const plotH = 320, axisH = 18;
+  const layout = elasticLayout(SESSIONS);
+  const w = layout.width + LABEL_W;
+  const layers = SECTIONS.map((s, si) => ({
+    key: si,
+    values: kernelSeries(BURSTS.filter((b) => b.paras.some((p) => sectionOfPara(p) === si)), layout),
+  }));
+  // Doc order, not inside-out: layer position is document position here.
+  const order = layers.map((_, i) => i);
+  const { stacked, maxTotal } = stackSilhouette(layers, order);
+  const scale = (plotH * 0.86) / maxTotal;
+  const yMap = (v) => plotH / 2 - v * scale;
+  const xs = Array.from(layers[0].values, (_, i) => i * STEP);
+
+  // Per-section gradient: dominant editor color at each session's center.
+  let defs = '';
+  const sessionsX = layout.segs.filter((g) => g.kind === 'session');
+  SECTIONS.forEach((sec, si) => {
+    const stops = sessionsX.map((g) => {
+      const m = new Map();
+      for (const b of g.session.bursts) {
+        if (!b.paras.some((p) => sectionOfPara(p) === si)) continue;
+        m.set(b.editor, (m.get(b.editor) ?? 0) + b.chars);
+      }
+      const lead = [...m.entries()].sort((a, b2) => b2[1] - a[1])[0];
+      return { x: (g.x0 + g.x1) / 2, color: lead ? editorById[lead[0]].color : '#cbd5e1' };
+    });
+    defs += `<linearGradient id="secgrad-${si}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${layout.width}" y2="0">` +
+      stops.map((s) => `<stop offset="${(s.x / layout.width) * 100}%" stop-color="${s.color}"/>`).join('') +
+      `</linearGradient>`;
+  });
+
+  let paths = '', labels = '';
+  layers.forEach((l, i) => {
+    const { y0, y1 } = stacked[i];
+    paths += `<path d="${bandPath(xs, y0, y1, yMap)}" fill="url(#secgrad-${l.key})" fill-opacity="0.8" stroke="#fff" stroke-width="0.7"><title>${esc(SECTIONS[l.key].title)}</title></path>`;
+    const anchor = widestPoint(y0, y1, 13 / scale, yMap);
+    if (anchor) labels += `<text x="${anchor.x}" y="${anchor.y + 3.5}" font-size="10" font-weight="600" fill="#fff" text-anchor="middle" pointer-events="none">${esc(SECTIONS[l.key].title)}</text>`;
+  });
+
+  el.innerHTML = `<svg width="${w}" height="${plotH + axisH}">
+    <defs>${defs}</defs>
+    <g transform="translate(${LABEL_W},0)">${axisSvg(layout, plotH + axisH - 5, plotH)}${paths}${labels}</g>
+  </svg>`;
+}
+
+/* --- I: smoothed history flow with History Flow's two spacing modes --- */
+let flowSpacing = 'session'; // 'session' | 'time'
+function renderHistoryFlow(el) {
+  const plotW = 1500, plotH = 330, top = 14, axisH = 20;
+  // Cumulative insert-only ownership at each session end (as in view F).
+  const cum = SECTIONS.map(() => new Map());
+  const cols = [];
+  for (const s of SESSIONS) {
+    for (const b of s.bursts) {
+      if (b.del) continue;
+      for (const p of b.paras) {
+        const m = cum[sectionOfPara(p)];
+        m.set(b.editor, (m.get(b.editor) ?? 0) + b.chars / b.paras.length);
+      }
+    }
+    cols.push({ t: s.t1, secs: cum.map((m) => new Map(m)) });
+  }
+  const keys = [];
+  SECTIONS.forEach((_, si) => EDITORS.forEach((e) => keys.push(`${si}:${e.id}`)));
+  const t0 = cols[0].t, tN = cols[cols.length - 1].t;
+  const xOfCol = (i) => flowSpacing === 'session'
+    ? (i / (cols.length - 1)) * plotW
+    : ((cols[i].t - t0) / (tN - t0)) * plotW;
+
+  const totalOf = (col) => col.secs.reduce((a, m) => a + [...m.values()].reduce((x, v) => x + v, 0), 0);
+  const maxTotal = totalOf(cols[cols.length - 1]);
+  const px = (v) => (v / maxTotal) * (plotH - 10);
+
+  // Stack every key at every column (zero-height keys keep a y position).
+  const yAt = keys.map(() => new Float32Array(cols.length));
+  const hAt = keys.map(() => new Float32Array(cols.length));
+  cols.forEach((col, ci) => {
+    let y = plotH - px(totalOf(col)); // doc grows downward-anchored
+    keys.forEach((k, ki) => {
+      const [si, eid] = k.split(':');
+      const v = col.secs[Number(si)].get(eid) ?? 0;
+      yAt[ki][ci] = y;
+      hAt[ki][ci] = px(v);
+      y += px(v);
+    });
+  });
+
+  let bands = '', seps = '';
+  keys.forEach((k, ki) => {
+    if (![...hAt[ki]].some((h) => h > 0.3)) return;
+    const [si, eid] = k.split(':');
+    const pts0 = [], pts1 = [];
+    for (let ci = 0; ci < cols.length; ci += 1) {
+      pts0.push([xOfCol(ci), top + yAt[ki][ci]]);
+      pts1.push([xOfCol(ci), top + yAt[ki][ci] + hAt[ki][ci]]);
+    }
+    bands += `<path d="${catmull(pts1)} L${pts0[pts0.length - 1][0].toFixed(1)},${pts0[pts0.length - 1][1].toFixed(1)} ${catmull([...pts0].reverse()).replace(/^M/, 'L')} Z" fill="${editorById[eid].color}" fill-opacity="0.8"><title>${esc(SECTIONS[Number(si)].title)} — ${esc(editorById[eid].name)}</title></path>`;
+  });
+  // White seams at section boundaries (last key of each section).
+  SECTIONS.forEach((_, si) => {
+    if (si === SECTIONS.length - 1) return;
+    const ki = (si + 1) * EDITORS.length; // first key of next section
+    const pts = [];
+    for (let ci = 0; ci < cols.length; ci += 1) pts.push([xOfCol(ci), top + yAt[ki][ci]]);
+    seps += `<path d="${catmull(pts)}" fill="none" stroke="#fff" stroke-width="1.6"/>`;
+  });
+  const ticks = cols.map((c, i) => (flowSpacing === 'session' || i === 0 || i === cols.length - 1 || c.t - cols[i - 1].t > DAY)
+    ? `<text x="${xOfCol(i)}" y="${top + plotH + 13}" font-size="8.5" fill="#94a3b8" text-anchor="middle">${fmtDay(c.t).replace(/^\w+, /, '')}</text>` : '').join('');
+
+  el.innerHTML = `<div style="margin-bottom:8px;font-size:12px;color:#64748b">Spacing:
+      <button data-sp="session" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 9px;font-size:12px;cursor:pointer;background:${flowSpacing === 'session' ? '#0f172a' : '#f8fafc'};color:${flowSpacing === 'session' ? '#fff' : '#475569'}">per session</button>
+      <button data-sp="time" style="border:1px solid #cbd5e1;border-radius:6px;padding:2px 9px;font-size:12px;cursor:pointer;background:${flowSpacing === 'time' ? '#0f172a' : '#f8fafc'};color:${flowSpacing === 'time' ? '#fff' : '#475569'}">proportional to time</button>
+      <span style="margin-left:8px">— History Flow shipped both because each hides what the other shows.</span></div>
+    <div class="scroll"><svg width="${plotW + 20}" height="${top + plotH + axisH}">
+      <g transform="translate(10,0)">${bands}${seps}${ticks}</g>
+    </svg></div>`;
+  el.querySelectorAll('button[data-sp]').forEach((b) =>
+    b.addEventListener('click', () => { flowSpacing = b.dataset.sp; renderHistoryFlow(el); }));
+}
+
+/* --- J: section streamlets (a symmetric mini-river per section row) --- */
+function renderStreamlets(el) {
+  const plotH = 340, axisH = 18;
+  const layout = elasticLayout(SESSIONS);
+  const bands = sectionBands(BURSTS, plotH, 1);
+  const w = layout.width + LABEL_W;
+
+  let paths = '';
+  for (const band of bands) {
+    const si = band.i;
+    const secBursts = BURSTS.filter((b) => b.paras.some((p) => sectionOfPara(p) === si));
+    if (secBursts.length === 0) continue;
+    const layers = EDITORS.map((e) => ({
+      key: e.id,
+      values: kernelSeries(secBursts.filter((b) => b.editor === e.id), layout),
+    })).filter((l) => l.values.some((v) => v > 0));
+    const order = insideOut(layers);
+    const { stacked, maxTotal } = stackSilhouette(layers, order);
+    const scale = (band.h * 0.94) / maxTotal;
+    const yMap = (v) => band.y + band.h / 2 - v * scale;
+    const xs = Array.from(layers[0].values, (_, i) => i * STEP);
+    layers.forEach((l, i) => {
+      const { y0, y1 } = stacked[i];
+      paths += `<path d="${bandPath(xs, y0, y1, yMap)}" fill="${editorById[l.key].color}" fill-opacity="0.78" stroke="#fff" stroke-width="0.5"><title>${esc(SECTIONS[si].title)} — ${esc(editorById[l.key].name)}</title></path>`;
+    });
+  }
+  el.innerHTML = `<svg width="${w}" height="${plotH + axisH}">
+    <g transform="translate(${LABEL_W},0)">
+      ${axisSvg(layout, plotH + axisH - 5, plotH)}
+      ${bands.map((b) => `<line x1="0" y1="${b.y + b.h}" x2="${layout.width}" y2="${b.y + b.h}" stroke="#f1f5f9"/>`).join('')}
+      ${paths}
+    </g>
+    ${sectionLabelSvg(bands, LABEL_W)}
+  </svg>`;
+}
+
 /* ================= gallery chrome ================= */
 const VIEWS = [
   {
@@ -623,6 +931,30 @@ const VIEWS = [
     desc: 'Long-run concept: each column is the document at a session’s end, stacked in document order, colored by who owns the characters (insert-only approximation here). The doc visibly grows; sections shift as ownership mixes.',
     note: 'The only view showing survivorship rather than activity. Real version needs per-character attribution — the data y/hub already has (exploration 0007).',
     render: renderOwnership,
+  },
+  {
+    key: 'stream', title: 'G · Editor streamgraph (drillable)',
+    desc: 'The organic volume river: one layer per editor, silhouette baseline, inside-out ordering (Byron–Wattenberg 2008), labels at each layer’s widest point. Click a layer to drill into that editor’s stream split by section — the Google Music Timeline interaction (genres → artists becomes editors → sections).',
+    note: 'y is volume only — document position is gone. This is the Volume tab’s successor, not the map’s.',
+    render: renderStream,
+  },
+  {
+    key: 'river', title: 'H · Section river (doc-ordered ThemeRiver)',
+    desc: 'Layers are document sections in reading order (top of river = top of doc), thickness = activity, and each layer’s fill is a time-gradient of whoever dominated it in that session. One picture answers where, when, and who at once.',
+    note: 'Stack order = document order, deliberately not wiggle-minimized: position meaning beats aesthetics here. Gray stretches = untouched.',
+    render: renderSectionRiver,
+  },
+  {
+    key: 'historyflow', title: 'I · Smoothed history flow (dual spacing)',
+    desc: 'View F’s ownership columns rebuilt as continuous flowing bands (curved boundaries, white seams at section edges) — and with History Flow’s two spacing modes: equal per session vs proportional to wall-clock time. Toggle them: the edit war is legible in one and nearly invisible in the other.',
+    note: 'Same insert-only ownership approximation as F; the point here is the geometry and the spacing lesson, not the attribution.',
+    render: renderHistoryFlow,
+  },
+  {
+    key: 'streamlets', title: 'J · Section streamlets (river per row)',
+    desc: 'The organic upgrade of the shipped terrain: each section row carries its own symmetric mini-streamgraph, stacked by editor instead of alpha-blended. Keeps the space axis and the labeled gutter; overlapping authors stack instead of muddying.',
+    note: 'Closest drop-in replacement for the current EditMap paint — same data, same rows, same axis, calmer ink.',
+    render: renderStreamlets,
   },
 ];
 
