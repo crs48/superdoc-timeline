@@ -37,8 +37,9 @@
 <h1>Edit-timeline UI alternatives</h1>
 <div class="sub">
   Prototype gallery for exploration 0008. One synthetic dataset — <b id="stat-doc"></b> —
-  rendered ten ways: six structural (A–F, exploration 0008) and four organic stream
-  variants (G–J, exploration 0009). Deterministic (seeded); none of these are production code.
+  rendered fourteen ways: six structural (A–F, exploration 0008), four organic stream
+  variants (G–J, exploration 0009), and four paradigm shifts (K–N, exploration 0010).
+  Deterministic (seeded); none of these are production code.
 </div>
 <div class="tabs" id="tabs"></div>
 <div class="panel">
@@ -894,6 +895,186 @@ function renderStreamlets(el) {
   </svg>`;
 }
 
+/* ================= paradigm-shift views (exploration 0010) ================= */
+
+/** Per-paragraph rollup: churn, per-editor chars, last touch, owner. */
+function paraStats() {
+  const stats = Array.from({ length: N_PARAS }, () => ({
+    churn: 0, last: null, lastEditor: null, lastMajor: null, byEditor: new Map(),
+  }));
+  for (const b of BURSTS) {
+    for (const p of b.paras) {
+      const s = stats[p - 1];
+      const share = b.chars / b.paras.length;
+      s.churn += share;
+      s.byEditor.set(b.editor, (s.byEditor.get(b.editor) ?? 0) + share);
+      if (s.last == null || b.t1 > s.last) { s.last = b.t1; s.lastEditor = b.editor; }
+      // Copy-edit-sized touches don't reset the "settled" clock (view M).
+      if (share >= 40 && (s.lastMajor == null || b.t1 > s.lastMajor)) s.lastMajor = b.t1;
+    }
+  }
+  for (const s of stats) {
+    s.owner = [...s.byEditor.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  }
+  return stats;
+}
+
+/* --- K: filmstrip — one document minimap per session --- */
+function renderFilmstrip(el) {
+  const stripW = 40, stripH = 260, gap = 14, top = 8;
+  const rowH = stripH / N_PARAS;
+  let out = '';
+  SESSIONS.forEach((s, i) => {
+    const x = i * (stripW + gap);
+    // Per paragraph: dominant editor + chars this session.
+    const per = new Map();
+    let maxV = 1;
+    for (const b of s.bursts) for (const p of b.paras) {
+      const m = per.get(p) ?? new Map();
+      m.set(b.editor, (m.get(b.editor) ?? 0) + b.chars / b.paras.length);
+      per.set(p, m);
+      maxV = Math.max(maxV, [...m.values()].reduce((a, v) => a + v, 0));
+    }
+    out += `<rect x="${x}" y="${top}" width="${stripW}" height="${stripH}" rx="3" fill="#f8fafc" stroke="#e2e8f0"/>`;
+    for (const [p, m] of per) {
+      const entries = [...m.entries()].sort((a, b) => b[1] - a[1]);
+      const total = entries.reduce((a, [, v]) => a + v, 0);
+      const alpha = 0.35 + 0.6 * Math.sqrt(total / maxV);
+      out += `<rect x="${x + 1}" y="${top + (p - 1) * rowH}" width="${stripW - 2}" height="${Math.max(rowH - 0.5, 1.5)}" fill="${editorById[entries[0][0]].color}" fill-opacity="${alpha.toFixed(2)}"><title>¶${p} — ${entries.map(([e]) => editorById[e].name).join(', ')}</title></rect>`;
+    }
+    out += `<text x="${x + stripW / 2}" y="${top + stripH + 12}" font-size="8" fill="#94a3b8" text-anchor="middle">${fmtDay(s.t0).replace(/^\w+, /, '')}</text>`;
+  });
+  // Section guides on the left.
+  const guides = SECTIONS.map((sec) =>
+    `<text x="-6" y="${top + ((sec.p0 + sec.p1) / 2 - 0.5) * rowH + 3}" font-size="8.5" text-anchor="end" fill="#94a3b8">${esc(sec.title)}</text>` +
+    `<line x1="-2" y1="${top + (sec.p0 - 1) * rowH}" x2="${SESSIONS.length * (stripW + gap)}" y2="${top + (sec.p0 - 1) * rowH}" stroke="#f1f5f9"/>`).join('');
+  el.innerHTML = `<svg width="${LABEL_W + SESSIONS.length * (stripW + gap)}" height="${top + stripH + 20}">
+    <g transform="translate(${LABEL_W},0)">${guides}${out}</g>
+  </svg>`;
+}
+
+/* --- L: document strata — the current doc as the only axis --- */
+function renderStrata(el) {
+  const stats = paraStats();
+  const colW = 190, churnW = 340, top = 10, plotH = 380;
+  const totalChurn = stats.reduce((a, s) => a + s.churn, 0) || 1;
+  const maxChurn = Math.max(...stats.map((s) => s.churn), 1);
+  const tN = SESSIONS[SESSIONS.length - 1].t1, t0 = SESSIONS[0].t0;
+  const rowH = plotH / N_PARAS;
+
+  let out = '';
+  stats.forEach((s, i) => {
+    const y = top + i * rowH;
+    if (s.owner == null) {
+      out += `<rect x="0" y="${y}" width="${colW}" height="${rowH - 0.6}" fill="#f1f5f9"/>`;
+      return;
+    }
+    // Strata fill: owner hue, aged toward white the longer untouched.
+    const age = (tN - s.last) / (tN - t0); // 0 fresh … 1 ancient
+    out += `<rect x="0" y="${y}" width="${colW}" height="${rowH - 0.6}" fill="${shade(editorById[s.owner].color, 0.15 + 0.72 * age)}"><title>¶${i + 1} — owner ${editorById[s.owner].name}, last edit ${fmtDay(s.last)} (${editorById[s.lastEditor].name})</title></rect>`;
+    // Churn profile: how contested this paragraph has been, ever.
+    const w = (s.churn / maxChurn) * churnW;
+    out += `<rect x="${colW + 34}" y="${y + 0.5}" width="${w}" height="${Math.max(rowH - 1.6, 1)}" rx="1.5" fill="#64748b" fill-opacity="0.55"><title>¶${i + 1} — ~${Math.round(s.churn)} chars of churn (${Math.round((s.churn / totalChurn) * 100)}%)</title></rect>`;
+  });
+  const guides = SECTIONS.map((sec) =>
+    `<text x="-8" y="${top + ((sec.p0 + sec.p1) / 2 - 0.5) * rowH + 3.5}" font-size="9.5" text-anchor="end" fill="#475569">${esc(sec.title)}</text>` +
+    `<line x1="-4" y1="${top + (sec.p0 - 1) * rowH}" x2="${colW + churnW + 40}" y2="${top + (sec.p0 - 1) * rowH}" stroke="#fff" stroke-width="1.5"/>`).join('');
+  el.innerHTML = `<svg width="${LABEL_W + colW + churnW + 60}" height="${top + plotH + 26}">
+    <g transform="translate(${LABEL_W},0)">
+      ${out}${guides}
+      <text x="0" y="${top + plotH + 16}" font-size="9.5" fill="#94a3b8">strata: hue = owner, faded = long untouched</text>
+      <text x="${colW + 34}" y="${top + plotH + 16}" font-size="9.5" fill="#94a3b8">churn profile: total chars ever rewritten</text>
+    </g>
+  </svg>`;
+}
+
+/* --- M: stability scatter — paragraphs in (recency × churn) space --- */
+function renderScatter(el) {
+  const stats = paraStats();
+  const plotW = 640, plotH = 360, padL = 46, padB = 30, top = 12;
+  const tN = SESSIONS[SESSIONS.length - 1].t1;
+  const ageOf = (s) => tN - (s.lastMajor ?? s.last);
+  const maxAge = Math.max(...stats.filter((s) => s.last).map(ageOf), 1);
+  const maxChurn = Math.max(...stats.map((s) => s.churn), 1);
+  const xOf = (s) => padL + (ageOf(s) / maxAge) * (plotW - 40);
+  const yOf = (s) => top + (1 - Math.sqrt(s.churn / maxChurn)) * (plotH - 20);
+
+  let dots = '';
+  stats.forEach((s, i) => {
+    if (s.owner == null) return;
+    const r = 3 + 4 * Math.sqrt(s.byEditor.size / EDITORS.length);
+    dots += `<circle cx="${xOf(s).toFixed(1)}" cy="${yOf(s).toFixed(1)}" r="${r.toFixed(1)}" fill="${editorById[s.owner].color}" fill-opacity="0.62" stroke="#fff" stroke-width="0.6"><title>¶${i + 1} (${SECTIONS[sectionOfPara(i + 1)].title}) — ${Math.round(s.churn)} chars churn, ${s.byEditor.size} editor${s.byEditor.size === 1 ? '' : 's'}, last ${fmtDay(s.last)}</title></circle>`;
+  });
+  const q = (x, y, label) => `<text x="${x}" y="${y}" font-size="10.5" font-weight="600" fill="#cbd5e1">${label}</text>`;
+  el.innerHTML = `<svg width="${plotW + 40}" height="${top + plotH + padB}">
+    <line x1="${padL}" y1="${top + plotH - 10}" x2="${plotW}" y2="${top + plotH - 10}" stroke="#e2e8f0"/>
+    <line x1="${padL}" y1="${top}" x2="${padL}" y2="${top + plotH - 10}" stroke="#e2e8f0"/>
+    ${q(padL + 10, top + 16, 'CONTESTED — heavy churn, still moving')}
+    ${q(plotW - 218, top + 16, 'HARD-WON — heavy churn, now quiet')}
+    ${q(padL + 10, top + plotH - 22, 'FRESH — light churn, recent')}
+    ${q(plotW - 190, top + plotH - 22, 'SETTLED — light churn, old')}
+    ${dots}
+    <text x="${(padL + plotW) / 2}" y="${top + plotH + 16}" font-size="10" fill="#64748b" text-anchor="middle">→ time since last edit</text>
+    <text x="14" y="${(top + plotH) / 2}" font-size="10" fill="#64748b" transform="rotate(-90 14 ${(top + plotH) / 2})" text-anchor="middle">→ total churn (√)</text>
+  </svg>
+  <p class="note" style="margin-top:2px">Dot = paragraph · hue = owner · size = how many editors touched it. No document order, no timeline — pure health triage.</p>`;
+}
+
+/* --- N: section rank bumps — y is activity rank, not position --- */
+function renderBumps(el) {
+  const colW = 66, top = 24, rowH = 34, plotH = SECTIONS.length * rowH;
+  // Per session: sections ranked by activity chars (only active ones ranked).
+  const ranks = SESSIONS.map((s) => {
+    const by = new Map();
+    for (const b of s.bursts) for (const p of b.paras) {
+      const si = sectionOfPara(p);
+      by.set(si, (by.get(si) ?? 0) + b.chars / b.paras.length);
+    }
+    const ordered = [...by.entries()].sort((a, b) => b[1] - a[1]);
+    const m = new Map();
+    ordered.forEach(([si, v], rank) => m.set(si, { rank, v, lead: null }));
+    // dominant editor per section this session
+    for (const [si] of m) {
+      const em = new Map();
+      for (const b of s.bursts) if (b.paras.some((p) => sectionOfPara(p) === si))
+        em.set(b.editor, (em.get(b.editor) ?? 0) + b.chars);
+      m.get(si).lead = [...em.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    }
+    return m;
+  });
+  const xOf = (i) => 30 + i * colW;
+  const yOf = (rank) => top + rank * rowH + rowH / 2;
+
+  let lines = '', dots = '', labels = '';
+  SECTIONS.forEach((sec, si) => {
+    const pts = [];
+    ranks.forEach((m, ci) => { if (m.has(si)) pts.push({ ci, ...m.get(si) }); });
+    if (pts.length === 0) return;
+    // Connect only consecutive-session appearances; a section that goes quiet drops out.
+    for (let k = 1; k < pts.length; k += 1) {
+      const a = pts[k - 1], b = pts[k];
+      const dash = b.ci - a.ci > 1 ? ' stroke-dasharray="2 4"' : '';
+      const mx = (xOf(a.ci) + xOf(b.ci)) / 2;
+      lines += `<path d="M${xOf(a.ci)},${yOf(a.rank)} C${mx},${yOf(a.rank)} ${mx},${yOf(b.rank)} ${xOf(b.ci)},${yOf(b.rank)}" fill="none" stroke="#cbd5e1" stroke-width="1.4"${dash}/>`;
+    }
+    const maxV = Math.max(...ranks.flatMap((m) => [...m.values()].map((x) => x.v)), 1);
+    for (const p of pts) {
+      const r = 3.5 + 6 * Math.sqrt(p.v / maxV);
+      dots += `<circle cx="${xOf(p.ci)}" cy="${yOf(p.rank)}" r="${r.toFixed(1)}" fill="${p.lead ? editorById[p.lead].color : '#94a3b8'}" fill-opacity="0.8"><title>${esc(sec.title)} — #${p.rank + 1} in ${fmtDay(SESSIONS[p.ci].t0)}${p.lead ? ', led by ' + editorById[p.lead].name : ''}</title></circle>`;
+    }
+    const first = pts[0], last = pts[pts.length - 1];
+    labels += `<text x="${xOf(first.ci) - 10}" y="${yOf(first.rank) + 3.5}" font-size="9" text-anchor="end" fill="#64748b">${esc(sec.title)}</text>`;
+    if (last.ci > first.ci + 3) labels += `<text x="${xOf(last.ci) + 10}" y="${yOf(last.rank) + 3.5}" font-size="9" fill="#94a3b8">${esc(sec.title)}</text>`;
+  });
+  const ticks = SESSIONS.map((s, i) =>
+    `<text x="${xOf(i)}" y="${top + plotH + 14}" font-size="8" fill="#94a3b8" text-anchor="middle" transform="rotate(-38 ${xOf(i)} ${top + plotH + 14})">${fmtDay(s.t0).replace(/^\w+, /, '')}</text>`).join('');
+  const rankAxis = SECTIONS.map((_, r) =>
+    `<text x="${xOf(SESSIONS.length - 1) + 26}" y="${yOf(r) + 3}" font-size="8.5" fill="#cbd5e1">#${r + 1}</text>`).join('');
+  el.innerHTML = `<svg width="${LABEL_W + xOf(SESSIONS.length - 1) + 60}" height="${top + plotH + 34}">
+    <g transform="translate(${LABEL_W - 20},0)">${lines}${dots}${labels}${ticks}${rankAxis}</g>
+  </svg>`;
+}
+
 /* ================= gallery chrome ================= */
 const VIEWS = [
   {
@@ -955,6 +1136,30 @@ const VIEWS = [
     desc: 'The organic upgrade of the shipped terrain: each section row carries its own symmetric mini-streamgraph, stacked by editor instead of alpha-blended. Keeps the space axis and the labeled gutter; overlapping authors stack instead of muddying.',
     note: 'Closest drop-in replacement for the current EditMap paint — same data, same rows, same axis, calmer ink.',
     render: renderStreamlets,
+  },
+  {
+    key: 'filmstrip', title: 'K · Filmstrip (a document minimap per session)',
+    desc: 'Time becomes a sequence of frames instead of an axis: each session is a miniature of the whole document, paragraphs tinted by who touched them. Reading it is flipping through a contact sheet of the document’s life.',
+    note: 'The reorg session (all-pink frame) and the war (two-color frames on Architecture) read instantly. Position stays y — but inside each frame, not on a shared axis.',
+    render: renderFilmstrip,
+  },
+  {
+    key: 'strata', title: 'L · Document strata (no time axis at all)',
+    desc: 'The current document is the only axis. Left: each paragraph as a stratum — hue = owner, fading toward white the longer untouched (geological age). Right: each paragraph’s total historical churn. Git-blame meets archaeology.',
+    note: 'This is the view that belongs inside the editor margin, not in a dock — history projected onto the artifact itself.',
+    render: renderStrata,
+  },
+  {
+    key: 'scatter', title: 'M · Stability scatter (paragraphs in feature space)',
+    desc: 'Both axes abandoned: x = time since last edit, y = total churn, dot = paragraph, size = how many editors fought over it. Quadrants tell the triage story — contested, hard-won, fresh, settled. The CodeScene-hotspot idea applied to prose.',
+    note: 'Answers "what needs attention?" — a question no position × time view can ask. Copy-edit-sized touches (<40 chars) don’t reset the recency clock, so a polish sweep can’t fake freshness. Useless for narrative; perfect for standups.',
+    render: renderScatter,
+  },
+  {
+    key: 'bumps', title: 'N · Section rank bumps (y = attention rank)',
+    desc: 'y is the rank of each section by activity, session over session — the document reordered by attention instead of position. Lines braid as focus shifts; dots take the dominant editor’s color; dashed = the section went quiet and returned.',
+    note: 'Rank hides magnitude (a quiet day’s #1 ≠ a busy day’s #1) — dot size restores it. Best as a "where is the energy going" companion, not a map.',
+    render: renderBumps,
   },
 ];
 
