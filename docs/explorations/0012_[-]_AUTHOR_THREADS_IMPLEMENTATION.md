@@ -611,7 +611,7 @@ Open questions this document cannot settle from the repo alone:
 - [x] **V6** Unit: two contributors bundled in the same row get distinct lanes, and the lane
       order matches their previous row ordinals (the barycenter pass)
 - [x] **V7** Unit: `__unplaced__` never contributes to sweep typing
-- [ ] **V8** Live: a two-contributor room renders two traceable, distinctly-coloured threads;
+- [x] **V8** Live: a two-contributor room renders two traceable, distinctly-coloured threads;
       toggling Threads preserves scroll position and the live-edge pin
 - [x] **V9** Live: clicking a node enters History Mode at that session; "Return to live" works
 - [x] **V10** Live: at `width < 480` (`labelW = 0`) threads still render and entry labels
