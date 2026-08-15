@@ -598,23 +598,23 @@ Open questions this document cannot settle from the repo alone:
 
 ## Validation Checklist
 
-- [ ] **V1** `pnpm test` green — the 59 existing tests plus the new `threads.test.ts`
-- [ ] **V2** `pnpm build` green under the strict tsconfig (`tsc --noEmit && vite build`)
-- [ ] **V3** Unit: a burst spanning 6 of 6 rows produces **one** sweep node whose weight
+- [x] **V1** `pnpm test` green — the 59 existing tests plus the new `threads.test.ts`
+- [x] **V2** `pnpm build` green under the strict tsconfig (`tsc --noEmit && vite build`)
+- [x] **V3** Unit: a burst spanning 6 of 6 rows produces **one** sweep node whose weight
       equals the event weight — not 6× (Finding 3 / R7)
-- [ ] **V4** Unit: with 3 rows, no node is ever typed `sweep`; with 8 rows, a 4-row episode
+- [x] **V4** Unit: with 3 rows, no node is ever typed `sweep`; with 8 rows, a 4-row episode
       is focus and a 5-row episode is sweep (Finding 2)
-- [ ] **V5** Unit: a contributor absent for sessions 2–4 yields exactly one link with
+- [x] **V5** Unit: a contributor absent for sessions 2–4 yields exactly one link with
       `dormant: true` spanning them, not three
-- [ ] **V6** Unit: two contributors bundled in the same row get distinct lanes, and the lane
+- [x] **V6** Unit: two contributors bundled in the same row get distinct lanes, and the lane
       order matches their previous row ordinals (the barycenter pass)
-- [ ] **V7** Unit: `__unplaced__` never contributes to sweep typing
+- [x] **V7** Unit: `__unplaced__` never contributes to sweep typing
 - [ ] **V8** Live: a two-contributor room renders two traceable, distinctly-coloured threads;
       toggling Threads preserves scroll position and the live-edge pin
-- [ ] **V9** Live: clicking a node enters History Mode at that session; "Return to live" works
-- [ ] **V10** Live: at `width < 480` (`labelW = 0`) threads still render and entry labels
+- [x] **V9** Live: clicking a node enters History Mode at that session; "Return to live" works
+- [x] **V10** Live: at `width < 480` (`labelW = 0`) threads still render and entry labels
       don't clip off the left edge
-- [ ] **V11** Live: thread volumes summed per contributor match the Volume tab's totals
+- [x] **V11** Live: thread volumes summed per contributor match the Volume tab's totals
 - [ ] **V12** Blind test (0011 V5): a viewer unfamiliar with the room answers "who drafted,
       who reorganised, who polished" from the threads alone
 

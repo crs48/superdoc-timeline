@@ -177,8 +177,15 @@ export const ThreadLayer = memo(function ThreadLayer({
   }, [geometry, bands, segments]);
   const placed = useMorphedY(placedTarget);
 
-  const sessionStart = (session: number) =>
-    segments.filter((s) => s.kind === 'session')[session]?.t0;
+  // A node click enters History Mode at its session's start — the map's
+  // existing `onPickTime` contract, so nothing new is wired upstream.
+  const pickSession = (e: React.MouseEvent, session: number) => {
+    const t = segments.filter((s) => s.kind === 'session')[session]?.t0;
+    if (onPickSession && t != null) {
+      e.stopPropagation();
+      onPickSession(t);
+    }
+  };
 
   const renderThread = (thread: Thread) => {
     const id = thread.contributorId;
@@ -214,8 +221,10 @@ export const ThreadLayer = memo(function ThreadLayer({
               fillOpacity={0.18}
               stroke={color}
               strokeOpacity={0.3}
+              style={onPickSession ? { cursor: 'pointer' } : undefined}
+              onClick={(e) => pickSession(e, p.node.session)}
             >
-              <title>{`${name} — swept the document · ${formatClock(p.node.t)}`}</title>
+              <title>{`${name} — swept the document · ${formatClock(p.node.t)} · ~${Math.round(p.node.weight)} chars`}</title>
             </rect>
           ) : null,
         )}
@@ -259,13 +268,7 @@ export const ThreadLayer = memo(function ThreadLayer({
               r={width(p.node) / 2 + 1.6}
               fill={color}
               style={onPickSession ? { cursor: 'pointer' } : undefined}
-              onClick={(e) => {
-                const t = sessionStart(p.node.session);
-                if (onPickSession && t != null) {
-                  e.stopPropagation();
-                  onPickSession(t);
-                }
-              }}
+              onClick={(e) => pickSession(e, p.node.session)}
             >
               <title>{`${name} · ${formatClock(p.node.t)} · ~${Math.round(p.node.weight)} chars`}</title>
             </circle>
