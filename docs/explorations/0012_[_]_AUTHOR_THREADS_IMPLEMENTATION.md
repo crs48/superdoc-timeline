@@ -592,7 +592,7 @@ Open questions this document cannot settle from the repo alone:
 - [ ] `Threads` toggle in the dock header; hidden below 2 contributors (R6)
 - [ ] Contributor legend chips become filters, reusing `EditsPanel`'s `aria-pressed` pattern
 - [ ] Node click → `onPickTime(session.t0)`
-- [ ] `assignColors` in [color.ts](../../src/lib/color.ts), consumed by the thread lens
+- [x] `assignColors` in [color.ts](../../src/lib/color.ts), consumed by the thread lens
 - [ ] Node-`y` morphing on row repartition (Finding 6)
 - [ ] README: one paragraph on the Threads lens, beside the Map/Volume description
 
