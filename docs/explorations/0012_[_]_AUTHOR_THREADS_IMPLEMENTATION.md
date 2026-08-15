@@ -579,21 +579,21 @@ Open questions this document cannot settle from the repo alone:
 **Status:** `░░░░░░░░░░ 0/14 items`
 
 - [x] `sessionColumns` + `columnOf` helpers in [sessions.ts](../../src/contributions/sessions.ts), with tests
-- [ ] `ThreadBurst` assembly in `buildMapData`: per-row shares from `BurstPlacement.changes`,
+- [x] `ThreadBurst` assembly in `buildMapData`: per-row shares from `BurstPlacement.changes`,
       normalised and scaled by `ContributionEvent.weight` (Finding 3)
 - [x] `src/contributions/threads.ts` — session bucketing, focus/sweep typing with the
       relative threshold, barycenter lanes, dormancy links, top-N cut
 - [x] `src/contributions/threads.test.ts` — see Validation
-- [ ] `ThreadLayer.tsx` — curtains, `ribbonPath` ribbons, dormant dashes, node dots,
+- [x] `ThreadLayer.tsx` — curtains, `ribbonPath` ribbons, dormant dashes, node dots,
       entry/exit labels
-- [ ] Transparent fat-stroke hit paths + hover-solo (local state, others → 0.12 opacity)
-- [ ] `EditMap` props: `threads`, `paintOpacity`; episode hits `pointerEvents:'none'` when on
+- [x] Transparent fat-stroke hit paths + hover-solo (local state, others → 0.12 opacity)
+- [x] `EditMap` props: `threads`, `paintOpacity`; episode hits `pointerEvents:'none'` when on
 - [x] `threads: boolean` in [store/dock.ts](../../src/store/dock.ts), persisted via `partialize`
-- [ ] `Threads` toggle in the dock header; hidden below 2 contributors (R6)
-- [ ] Contributor legend chips become filters, reusing `EditsPanel`'s `aria-pressed` pattern
-- [ ] Node click → `onPickTime(session.t0)`
+- [x] `Threads` toggle in the dock header; hidden below 2 contributors (R6)
+- [x] Contributor legend chips become filters, reusing `EditsPanel`'s `aria-pressed` pattern
+- [x] Node click → `onPickTime(session.t0)`
 - [x] `assignColors` in [color.ts](../../src/lib/color.ts), consumed by the thread lens
-- [ ] Node-`y` morphing on row repartition (Finding 6)
+- [x] Node-`y` morphing on row repartition (Finding 6)
 - [ ] README: one paragraph on the Threads lens, beside the Map/Volume description
 
 ## Validation Checklist

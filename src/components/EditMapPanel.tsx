@@ -11,7 +11,9 @@ import {
 } from './EditMap';
 import { buildLineage, buildRowResolver, foldEpisodes } from '@/contributions/episodes';
 import { buildSectionIndex, partitionSections } from '@/contributions/sections';
-import { layoutSessions, xOf } from '@/contributions/sessions';
+import { layoutSessions, sessionColumns, xOf } from '@/contributions/sessions';
+import { buildThreads, type ThreadBurst, type ThreadGeometry } from '@/contributions/threads';
+import { assignColors, colorForContributor } from '@/lib/color';
 import { useActivity } from '@/store/activity';
 import type { BlockText } from '@/spotlight/burstDiff';
 import type { BurstPlacement } from '@/spotlight/placementIndex';
@@ -22,6 +24,10 @@ interface EditMapPanelProps {
   connected: boolean;
   /** History Mode: click the map to jump to that real timestamp. */
   onPickTime?: (t: number) => void;
+  /** Author-threads lens on (exploration 0012). */
+  threads?: boolean;
+  /** Contributors the legend has filtered out of the thread lens. */
+  hiddenContributors?: ReadonlySet<string>;
 }
 
 /** Rows are measured, not configured: as many 36px rows as the plot fits. */
@@ -34,6 +40,8 @@ interface MapData {
   contentW: number;
   marks: BurstMark[];
   hits: EpisodeHit[];
+  /** Thread input: located bursts with weight distributed over rows. */
+  threadBursts: ThreadBurst[];
 }
 
 /**
@@ -124,7 +132,38 @@ function buildMapData(
     }
   }
 
-  return { rows, segments, contentW, marks, hits };
+  // Thread input (0012 finding 3): unlike `marks`, which paints the full
+  // weight on every touched row (fine for a blurred terrain), a thread must
+  // see each burst once. Placement changes give the exact per-row shape —
+  // Σ(inserted + deleted) per block — which we normalise to shares of the
+  // event's weight so thread volumes reconcile with the Volume tab (R8).
+  // Only located bursts contribute: an unlocated burst is unknown, not
+  // "elsewhere", and it would only add haze while the backfill runs.
+  const threadBursts: ThreadBurst[] = [];
+  for (const burst of bursts) {
+    const placement = placements.get(burst.id);
+    if (!placement) continue;
+    const perRow = new Map<string, number>();
+    let total = 0;
+    for (const change of placement.changes) {
+      const size = change.inserted.length + change.deleted.length;
+      if (size <= 0) continue;
+      const rowKey = rowKeyForBlock(change.blockId);
+      perRow.set(rowKey, (perRow.get(rowKey) ?? 0) + size);
+      total += size;
+    }
+    threadBursts.push({
+      contributorId: burst.contributorId,
+      startedAt: burst.startedAt,
+      weight: burst.weight,
+      rows:
+        total > 0
+          ? [...perRow].map(([rowKey, size]) => ({ rowKey, share: size / total }))
+          : [],
+    });
+  }
+
+  return { rows, segments, contentW, marks, hits, threadBursts };
 }
 
 /**
@@ -132,7 +171,13 @@ function buildMapData(
  * measured here (one ResizeObserver) because the row cap derives from height
  * and the session layout from width — geometry flows down into EditMap.
  */
-export function EditMapPanel({ contributors, connected, onPickTime }: EditMapPanelProps) {
+export function EditMapPanel({
+  contributors,
+  connected,
+  onPickTime,
+  threads = false,
+  hiddenContributors,
+}: EditMapPanelProps) {
   const events = useActivity((s) => s.events);
   const placements = useActivity((s) => s.placements);
   const latestBlocks = useActivity((s) => s.latestBlocks);
@@ -164,6 +209,22 @@ export function EditMapPanel({ contributors, connected, onPickTime }: EditMapPan
     const names = new Map(contributors.map((c) => [c.id, c.name]));
     return (id: string) => names.get(id) ?? id.slice(0, 8);
   }, [contributors]);
+
+  // Threads read hue as identity, so the lens uses the collision-free
+  // assignment (0012 finding 4). The terrain keeps the hash palette until
+  // the swap has been looked at on a real room.
+  const colorOf = useMemo(() => {
+    if (!threads) return colorForContributor;
+    const assigned = assignColors(contributors.map((c) => c.id));
+    return (id: string) => assigned.get(id) ?? colorForContributor(id);
+  }, [threads, contributors]);
+
+  const geometry = useMemo<ThreadGeometry | undefined>(() => {
+    if (!threads) return undefined;
+    return buildThreads(data.threadBursts, data.rows, sessionColumns(data.segments), {
+      hidden: hiddenContributors,
+    });
+  }, [threads, data, hiddenContributors]);
 
   const located = placements.size;
   const total = events.size;
@@ -197,11 +258,20 @@ export function EditMapPanel({ contributors, connected, onPickTime }: EditMapPan
             labelW={labelW}
             nameOf={nameOf}
             onPickTime={onPickTime}
+            threads={geometry}
+            paintOpacity={geometry ? 0.25 : 1}
+            colorOf={colorOf}
           />
         )}
       </div>
       <p className="px-2 pt-1 text-[11px] text-slate-400">
         Rows are document sections; hatched seams are idle gaps over 5 min, collapsed.
+        {geometry
+          ? ' Threads: one line per author — pill = whole-document pass, dotted = away; hover to solo.'
+          : ''}
+        {geometry && geometry.omitted.length > 0
+          ? ` ${geometry.omitted.length} quieter author${geometry.omitted.length === 1 ? '' : 's'} not drawn.`
+          : ''}
         {located < total ? ` Locating edits… (${located}/${total})` : ''}
         {onPickTime ? ' Click to view the document at that moment.' : ''}
       </p>

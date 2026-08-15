@@ -6,7 +6,9 @@ import {
   sampleIntensity,
   terrainPath,
 } from './terrain';
+import { ThreadLayer } from './ThreadLayer';
 import { tOf, type TimeSegment } from '@/contributions/sessions';
+import type { ThreadGeometry } from '@/contributions/threads';
 import { colorForContributor } from '@/lib/color';
 import { formatClock, formatDuration } from '@/lib/time';
 
@@ -62,6 +64,16 @@ interface EditMapProps {
   onPickTime?: (t: number) => void;
   /** Reserved for the 0003 hover spotlight; no-op until it lands. */
   onHoverEpisode?: (hit: EpisodeHit | null) => void;
+  /**
+   * Author-threads lens (exploration 0012). When set, threads render above
+   * the terrain, the terrain dims to `paintOpacity`, and the episode hit
+   * layer yields pointer events — one hover semantics at a time.
+   */
+  threads?: ThreadGeometry;
+  /** Multiplies the terrain's fill opacity; 1 when the lens is off. */
+  paintOpacity?: number;
+  /** Colour per contributor; defaults to the hash palette. */
+  colorOf?: (contributorId: string) => string;
 }
 
 const MIN_ROW_H = 12;
@@ -143,6 +155,9 @@ export const EditMap = memo(function EditMap({
   nameOf,
   onPickTime,
   onHoverEpisode,
+  threads,
+  paintOpacity = 1,
+  colorOf = colorForContributor,
 }: EditMapProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
@@ -242,9 +257,9 @@ export const EditMap = memo(function EditMap({
       x: peakI * SAMPLE_STEP,
       y: Math.max(10, band.y + band.h - rise - 6),
       name: nameOf(hovered.contributorId),
-      color: colorForContributor(hovered.contributorId),
+      color: colorOf(hovered.contributorId),
     };
-  }, [hovered, bands, displayed, ceiling, nameOf]);
+  }, [hovered, bands, displayed, ceiling, nameOf, colorOf]);
 
   if (!ready) return <div className="h-full w-full" />;
 
@@ -317,8 +332,8 @@ export const EditMap = memo(function EditMap({
               <path
                 key={key}
                 d={d}
-                fill={colorForContributor(contributorId)}
-                fillOpacity={0.65}
+                fill={colorOf(contributorId)}
+                fillOpacity={0.65 * paintOpacity}
                 style={{ mixBlendMode: 'multiply' }}
               />
             );
@@ -371,7 +386,21 @@ export const EditMap = memo(function EditMap({
               );
             })}
 
-          {/* Transparent episode hit layer: tooltips, hover, future spotlight. */}
+          {/* Author threads over the dimmed terrain (0012). */}
+          {threads ? (
+            <ThreadLayer
+              geometry={threads}
+              bands={bands}
+              segments={segments}
+              colorOf={colorOf}
+              nameOf={nameOf}
+              onPickSession={onPickTime}
+              labelInset={0}
+            />
+          ) : null}
+
+          {/* Transparent episode hit layer: tooltips, hover, future spotlight.
+              Inert while the thread lens owns hover. */}
           {hits.map((hit) => {
             const band = bands.get(hit.rowKey);
             if (!band) return null;
@@ -383,6 +412,7 @@ export const EditMap = memo(function EditMap({
                 width={Math.max(hit.x1 - hit.x0, MIN_HIT_W)}
                 height={band.h}
                 fill="transparent"
+                pointerEvents={threads ? 'none' : undefined}
                 onMouseEnter={() => {
                   setHovered(hit);
                   onHoverEpisode?.(hit);
