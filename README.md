@@ -6,10 +6,14 @@ default **Map** view is an organic edit terrain: document sections on the y-axis
 as fit the dock, never more), gap-compressed elastic time on the x-axis (idle gaps collapse to
 seams; dense history grows the chart and scrolls, pinned to the live edge), and one smooth
 kernel-density lobe per burst — contributor-colored, translucent, multiply-blended where
-authors overlap. The **Volume** tab keeps the stacked area chart with a brush window,
-per-contributor totals, and legend solo. Click either chart to enter **History Mode**: the
-document as it was at that moment, reconstructed by the server, with a one-click return to
-live.
+authors overlap. With two or more authors, a **Threads** toggle lays an author-storyline lens
+over the map: one ribbon per person weaving between the sections they edited, session by
+session — thickness is volume, a translucent pill is a whole-document pass, a dotted line is
+an absence, and co-editing authors sit side by side in the same row. Hover to solo a thread,
+click a legend chip to hide one, click a node to jump to that session. The **Volume** tab
+keeps the stacked area chart with a brush window, per-contributor totals, and legend solo.
+Click either chart to enter **History Mode**: the document as it was at that moment,
+reconstructed by the server, with a one-click return to live.
 
 Built as a ~4-hour take-home. The full design rationale, including the dead ends, lives in
 [docs/explorations/0001](docs/explorations/0001_%5Bx%5D_SUPERDOC_CONTRIBUTIONS_TIMELINE.md), and the

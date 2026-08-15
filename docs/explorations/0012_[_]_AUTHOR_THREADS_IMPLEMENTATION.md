@@ -594,7 +594,7 @@ Open questions this document cannot settle from the repo alone:
 - [x] Node click → `onPickTime(session.t0)`
 - [x] `assignColors` in [color.ts](../../src/lib/color.ts), consumed by the thread lens
 - [x] Node-`y` morphing on row repartition (Finding 6)
-- [ ] README: one paragraph on the Threads lens, beside the Map/Volume description
+- [x] README: one paragraph on the Threads lens, beside the Map/Volume description
 
 ## Validation Checklist
 
