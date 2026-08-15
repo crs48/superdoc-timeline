@@ -110,6 +110,21 @@ export function layoutSessions(
   return { contentW, segments };
 }
 
+/**
+ * The session columns the axis actually drew, in order. Anything that wants
+ * to bucket activity "per session" must read them off the laid-out segments
+ * rather than re-merging bursts: `layoutSessions` merges *episode* spans, and
+ * a second merge over a different span list would disagree with the axis.
+ */
+export function sessionColumns(segments: TimeSegment[]): TimeSegment[] {
+  return segments.filter((seg) => seg.kind === 'session');
+}
+
+/** Which session column a time falls in; -1 if it sits inside a collapsed seam. */
+export function columnOf(t: number, columns: TimeSegment[]): number {
+  return columns.findIndex((col) => t >= col.t0 && t <= col.t1);
+}
+
 /** Real time → x px. Times inside a cut clamp to the seam's end. */
 export function xOf(t: number, segments: TimeSegment[]): number {
   const first = segments[0];

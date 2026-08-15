@@ -17,8 +17,11 @@ interface DockState {
   /** Expanded body height in px. Clamped on write, not on read. */
   height: number;
   collapsed: boolean;
+  /** Author-threads lens over the map (exploration 0012). */
+  threads: boolean;
   setHeight: (height: number) => void;
   toggleCollapsed: () => void;
+  toggleThreads: () => void;
 }
 
 /**
@@ -32,11 +35,17 @@ export const useDock = create<DockState>()(
       height: 260,
       collapsed: typeof window !== 'undefined' && window.innerWidth < 768,
       setHeight: (height) => set({ height: clampDockHeight(height), collapsed: false }),
+      threads: false,
       toggleCollapsed: () => set((state) => ({ collapsed: !state.collapsed })),
+      toggleThreads: () => set((state) => ({ threads: !state.threads })),
     }),
     {
       name: 'superdoc-timeline:dock',
-      partialize: (state) => ({ height: state.height, collapsed: state.collapsed }),
+      partialize: (state) => ({
+        height: state.height,
+        collapsed: state.collapsed,
+        threads: state.threads,
+      }),
     },
   ),
 );
