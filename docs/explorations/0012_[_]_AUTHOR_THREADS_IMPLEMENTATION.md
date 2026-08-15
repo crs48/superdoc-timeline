@@ -562,7 +562,9 @@ classDiagram
 Open questions this document cannot settle from the repo alone:
 
 - [ ] Is `max(3, ⌈rows/2⌉)` the right sweep cut on a real 3-row dock, or should sweeps be
-      suppressed below 5 rows rather than 4?
+      suppressed below 5 rows rather than 4? *Observed live (2026-08-15, 4-row dock): two
+      focused edits in ¶1 and ¶3 span 3 rows and become a curtain — legible, but arguably
+      overstated. Worth trying `touched ≥ cut` alone (drop the span test) below 6 rows.*
 - [ ] Should a curtain claim lane space or float behind focus nodes, as prototyped?
       (Inherited from 0011; still open.)
 - [ ] Does `assignColors` graduate to the global default, and if so does changing a
