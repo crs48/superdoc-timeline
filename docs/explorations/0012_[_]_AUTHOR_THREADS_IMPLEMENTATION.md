@@ -581,9 +581,9 @@ Open questions this document cannot settle from the repo alone:
 - [x] `sessionColumns` + `columnOf` helpers in [sessions.ts](../../src/contributions/sessions.ts), with tests
 - [ ] `ThreadBurst` assembly in `buildMapData`: per-row shares from `BurstPlacement.changes`,
       normalised and scaled by `ContributionEvent.weight` (Finding 3)
-- [ ] `src/contributions/threads.ts` — session bucketing, focus/sweep typing with the
+- [x] `src/contributions/threads.ts` — session bucketing, focus/sweep typing with the
       relative threshold, barycenter lanes, dormancy links, top-N cut
-- [ ] `src/contributions/threads.test.ts` — see Validation
+- [x] `src/contributions/threads.test.ts` — see Validation
 - [ ] `ThreadLayer.tsx` — curtains, `ribbonPath` ribbons, dormant dashes, node dots,
       entry/exit labels
 - [ ] Transparent fat-stroke hit paths + hover-solo (local state, others → 0.12 opacity)
