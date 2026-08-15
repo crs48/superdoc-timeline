@@ -3,8 +3,10 @@ import {
   MIN_BURST_PX,
   SEAM_PX,
   SESSION_GAP_MS,
+  columnOf,
   layoutSessions,
   mergeSessions,
+  sessionColumns,
   tOf,
   xOf,
 } from './sessions';
@@ -96,5 +98,28 @@ describe('xOf / tOf (px space)', () => {
     expect(xOf(-MIN, segments)).toBe(0);
     expect(tOf(-5, segments)).toBe(0);
     expect(tOf(10_000, segments)).toBe(65 * MIN);
+  });
+});
+
+describe('sessionColumns / columnOf', () => {
+  const { segments } = layoutSessions(
+    [span(0, 10 * MIN), span(60 * MIN, 65 * MIN)],
+    [],
+    900,
+  );
+
+  it('returns only the session segments, in axis order', () => {
+    const cols = sessionColumns(segments);
+    expect(cols).toHaveLength(2);
+    expect(cols.map((c) => c.kind)).toEqual(['session', 'session']);
+    expect(cols[0]!.t0).toBe(0);
+    expect(cols[1]!.t0).toBe(60 * MIN);
+  });
+
+  it('places a time in its column and a seam time in none', () => {
+    const cols = sessionColumns(segments);
+    expect(columnOf(4 * MIN, cols)).toBe(0);
+    expect(columnOf(65 * MIN, cols)).toBe(1);
+    expect(columnOf(30 * MIN, cols)).toBe(-1);
   });
 });

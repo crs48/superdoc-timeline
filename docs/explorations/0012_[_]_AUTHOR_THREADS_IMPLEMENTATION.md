@@ -578,7 +578,7 @@ Open questions this document cannot settle from the repo alone:
 
 **Status:** `░░░░░░░░░░ 0/14 items`
 
-- [ ] `sessionColumns` + `columnOf` helpers in [sessions.ts](../../src/contributions/sessions.ts), with tests
+- [x] `sessionColumns` + `columnOf` helpers in [sessions.ts](../../src/contributions/sessions.ts), with tests
 - [ ] `ThreadBurst` assembly in `buildMapData`: per-row shares from `BurstPlacement.changes`,
       normalised and scaled by `ContributionEvent.weight` (Finding 3)
 - [ ] `src/contributions/threads.ts` — session bucketing, focus/sweep typing with the
