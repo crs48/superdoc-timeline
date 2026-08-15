@@ -588,7 +588,7 @@ Open questions this document cannot settle from the repo alone:
       entry/exit labels
 - [ ] Transparent fat-stroke hit paths + hover-solo (local state, others → 0.12 opacity)
 - [ ] `EditMap` props: `threads`, `paintOpacity`; episode hits `pointerEvents:'none'` when on
-- [ ] `threads: boolean` in [store/dock.ts](../../src/store/dock.ts), persisted via `partialize`
+- [x] `threads: boolean` in [store/dock.ts](../../src/store/dock.ts), persisted via `partialize`
 - [ ] `Threads` toggle in the dock header; hidden below 2 contributors (R6)
 - [ ] Contributor legend chips become filters, reusing `EditsPanel`'s `aria-pressed` pattern
 - [ ] Node click → `onPickTime(session.t0)`
